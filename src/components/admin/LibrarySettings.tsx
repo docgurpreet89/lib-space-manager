@@ -1,11 +1,13 @@
-
 import { useState, useEffect } from 'react';
-import { supabase, LibrarySettings as LibrarySettingsType } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+
+type LibrarySettings = Database['public']['Tables']['library_settings']['Row'];
 
 export const LibrarySettings = () => {
   const [settings, setSettings] = useState({
@@ -31,7 +33,7 @@ export const LibrarySettings = () => {
       if (error) throw error;
 
       const settingsMap: { [key: string]: string } = {};
-      data?.forEach((setting: LibrarySettingsType) => {
+      data?.forEach((setting: LibrarySettings) => {
         settingsMap[setting.setting_name] = setting.setting_value;
       });
 

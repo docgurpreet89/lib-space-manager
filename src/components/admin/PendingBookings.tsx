@@ -1,10 +1,12 @@
-
 import { useState, useEffect } from 'react';
-import { supabase, SeatBooking } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+
+type SeatBooking = Database['public']['Tables']['seat_bookings']['Row'];
 
 export const PendingBookings = () => {
   const [bookings, setBookings] = useState<SeatBooking[]>([]);

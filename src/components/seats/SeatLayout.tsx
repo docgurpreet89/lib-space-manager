@@ -1,11 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase, Seat, SeatBooking, SeatHold } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { SeatBookingModal } from '@/components/seats/SeatBookingModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+
+type Seat = Database['public']['Tables']['seats']['Row'];
+type SeatBooking = Database['public']['Tables']['seat_bookings']['Row'];
+type SeatHold = Database['public']['Tables']['seat_holds']['Row'];
 
 interface SeatLayoutProps {
   user: User;

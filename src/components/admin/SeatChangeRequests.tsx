@@ -1,10 +1,12 @@
-
 import { useState, useEffect } from 'react';
-import { supabase, SeatChangeRequest } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+
+type SeatChangeRequest = Database['public']['Tables']['seat_change_requests']['Row'];
 
 export const SeatChangeRequests = () => {
   const [requests, setRequests] = useState<SeatChangeRequest[]>([]);
