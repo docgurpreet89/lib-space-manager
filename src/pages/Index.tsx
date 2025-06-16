@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { UserDashboard } from '@/components/dashboard/UserDashboard';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';

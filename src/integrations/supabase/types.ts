@@ -9,13 +9,318 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      library_settings: {
+        Row: {
+          setting_name: string
+          setting_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          setting_name: string
+          setting_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          setting_name?: string
+          setting_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      seat_bookings: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          from_time: string
+          seat_id: string | null
+          status: string | null
+          to_time: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_phone: string
+        }
+        Insert: {
+          booking_id?: string
+          created_at?: string | null
+          from_time: string
+          seat_id?: string | null
+          status?: string | null
+          to_time: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_phone: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          from_time?: string
+          seat_id?: string | null
+          status?: string | null
+          to_time?: string
+          user_email?: string
+          user_id?: string
+          user_name?: string
+          user_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_bookings_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["seat_id"]
+          },
+        ]
+      }
+      seat_change_requests: {
+        Row: {
+          booking_id: string | null
+          created_at: string | null
+          new_seat_id: string | null
+          old_seat_id: string | null
+          request_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string | null
+          new_seat_id?: string | null
+          old_seat_id?: string | null
+          request_id?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string | null
+          new_seat_id?: string | null
+          old_seat_id?: string | null
+          request_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_change_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "seat_bookings"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "seat_change_requests_new_seat_id_fkey"
+            columns: ["new_seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["seat_id"]
+          },
+          {
+            foreignKeyName: "seat_change_requests_old_seat_id_fkey"
+            columns: ["old_seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["seat_id"]
+          },
+        ]
+      }
+      seat_holds: {
+        Row: {
+          created_at: string | null
+          hold_id: string
+          lock_expiry: string
+          seat_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          hold_id?: string
+          lock_expiry: string
+          seat_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          hold_id?: string
+          lock_expiry?: string
+          seat_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_holds_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["seat_id"]
+          },
+        ]
+      }
+      seat_images: {
+        Row: {
+          created_at: string | null
+          image_id: string
+          image_url: string
+          seat_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          image_id?: string
+          image_url: string
+          seat_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          image_id?: string
+          image_url?: string
+          seat_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_images_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["seat_id"]
+          },
+        ]
+      }
+      seats: {
+        Row: {
+          created_at: string | null
+          seat_id: string
+          seat_label: string
+        }
+        Insert: {
+          created_at?: string | null
+          seat_id?: string
+          seat_label: string
+        }
+        Update: {
+          created_at?: string | null
+          seat_id?: string
+          seat_label?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string | null
+          description: string | null
+          status: string | null
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          status?: string | null
+          transaction_id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          status?: string | null
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "seat_bookings"
+            referencedColumns: ["booking_id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_seat_change: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
+      book_seat: {
+        Args: {
+          p_seat_id: string
+          p_user_id: string
+          p_user_name: string
+          p_user_email: string
+          p_user_phone: string
+          p_from_time: string
+          p_to_time: string
+        }
+        Returns: boolean
+      }
+      cancel_booking: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
+      cleanup_expired_holds: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      confirm_booking: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
