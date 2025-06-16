@@ -1,5 +1,5 @@
-
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,14 +10,13 @@ export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Login form state
   const [loginData, setLoginData] = useState({
     email: '',
     password: ''
   });
 
-  // Registration form state
   const [registerData, setRegisterData] = useState({
     fullName: '',
     email: '',
@@ -31,17 +30,86 @@ export const AuthForm = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginData.email,
         password: loginData.password,
       });
 
       if (error) throw error;
+      const user = data.user;
+      if (!user) throw new Error("Login succeeded but no user data found");
+
+      // Check if profile exists
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
+      if (!profileData) {
+        const { error: insertProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || '',
+            phone: user.user_metadata?.phone || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        if (insertProfileError) throw insertProfileError;
+      }
+
+      // Check if role exists
+      const { data: roleExists, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (roleError && roleError.code !== 'PGRST116') {
+        throw roleError;
+      }
+
+      if (!roleExists) {
+        const { error: insertRoleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: user.id,
+            role: 'user'
+          });
+        if (insertRoleError) throw insertRoleError;
+      }
+
+      // Fetch the role again (in case it was just inserted)
+      const { data: finalRole, error: finalRoleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (finalRoleError) throw finalRoleError;
+
+      if (finalRoleError) throw finalRoleError;
+
+      // Optional: toast, no need for delay
+      toast({
+        title: "Welcome!",
+        description: "Logged in successfully.",
+      });
+
+      // Navigate to root (your router decides what to show)
+      navigate('/');
 
       toast({
-        title: "Welcome back!",
-        description: "You've been successfully logged in.",
+        title: "Welcome!",
+        description: "Logged in successfully.",
       });
+
     } catch (error: any) {
       toast({
         title: "Login Error",
@@ -93,10 +161,9 @@ export const AuthForm = () => {
 
       toast({
         title: "Registration Successful!",
-        description: "Please check your email to verify your account before logging in.",
+        description: "Please check your email to verify your account.",
       });
 
-      // Reset form and switch to login
       setRegisterData({
         fullName: '',
         email: '',
@@ -105,6 +172,7 @@ export const AuthForm = () => {
         confirmPassword: ''
       });
       setIsLogin(true);
+
     } catch (error: any) {
       toast({
         title: "Registration Error",
@@ -133,26 +201,20 @@ export const AuthForm = () => {
         <CardContent>
           {isLogin ? (
             <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Input
-                  type="email"
-                  placeholder="Email address"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={loginData.email}
+                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={loginData.password}
+                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                required
+              />
               <Button 
                 type="submit" 
                 className="w-full bg-blue-600 hover:bg-blue-700"
@@ -163,56 +225,41 @@ export const AuthForm = () => {
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <Input
-                  type="text"
-                  placeholder="Full Name"
-                  value={registerData.fullName}
-                  onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Input
-                  type="email"
-                  placeholder="Email address"
-                  value={registerData.email}
-                  onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Input
-                  type="tel"
-                  placeholder="Phone number"
-                  value={registerData.phone}
-                  onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Confirm Password"
-                  value={registerData.confirmPassword}
-                  onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                  required
-                  className="w-full"
-                />
-              </div>
+              <Input
+                type="text"
+                placeholder="Full Name"
+                value={registerData.fullName}
+                onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
+                required
+              />
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={registerData.email}
+                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                required
+              />
+              <Input
+                type="tel"
+                placeholder="Phone number"
+                value={registerData.phone}
+                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={registerData.password}
+                onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Confirm Password"
+                value={registerData.confirmPassword}
+                onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                required
+              />
               <Button 
                 type="submit" 
                 className="w-full bg-green-600 hover:bg-green-700"
@@ -222,7 +269,6 @@ export const AuthForm = () => {
               </Button>
             </form>
           )}
-          
           <div className="mt-4 text-center">
             <Button 
               type="button" 
@@ -230,14 +276,13 @@ export const AuthForm = () => {
               className="w-full"
               onClick={() => {
                 setIsLogin(!isLogin);
-                // Reset forms when switching
                 setLoginData({ email: '', password: '' });
-                setRegisterData({ 
-                  fullName: '', 
-                  email: '', 
-                  phone: '', 
-                  password: '', 
-                  confirmPassword: '' 
+                setRegisterData({
+                  fullName: '',
+                  email: '',
+                  phone: '',
+                  password: '',
+                  confirmPassword: ''
                 });
               }}
             >
