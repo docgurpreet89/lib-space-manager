@@ -40,15 +40,16 @@ export const SeatBookingModal = ({ seat, user, isOpen, onClose, onBookingSuccess
 
       // Call the book_seat function
       const { data, error } = await supabase
-        .rpc('book_seat', {
-          p_seat_id: seat.seat_id,
-          p_user_id: user.id,
-          p_user_name: formData.name,
-          p_user_email: formData.email,
-          p_user_phone: formData.phone,
-          p_from_time: fromTime.toISOString(),
-          p_to_time: toTime.toISOString(),
+        .rpc('process_seat_booking', {
+          _seat_id: seat.seat_id,
+          _user_id: user.id,
+          _user_name: formData.name,
+          _user_email: formData.email,
+          _user_phone: formData.phone,
+          _from: fromTime.toISOString(),
+          _to: toTime.toISOString()
         });
+
 
       if (error) throw error;
 
