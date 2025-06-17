@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,8 +7,8 @@ import { TransactionHistory } from '@/components/transactions/TransactionHistory
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, CreditCard, MapPin, User as UserIcon, Users, CheckCircle } from 'lucide-react';
-
+// import { Calendar, MapPin, Users, CheckCircle, Clock, Chair } from 'lucide-react';
+import { Calendar, MapPin, Users, CheckCircle, Sofa, Timer, Hourglass, Armchair } from 'lucide-react';
 interface UserDashboardProps {
   user: User;
 }
@@ -45,11 +44,10 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white p-4 space-y-4">
-      {/* Library Stats Card */}
+    <div className="min-h-screen bg-[#E6F4FF] p-4 space-y-4">
       <Card className="app-card">
         <CardHeader className="pb-4">
-          <CardTitle className="text-[#333333] text-lg font-semibold">Library Stats</CardTitle>
+          <CardTitle className="text-[#333333] text-lg font-semibold">Statistics</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
@@ -64,12 +62,12 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
               <div className="text-xl font-bold">{availableSeats}</div>
             </div>
             <div className="stat-button">
-              <Calendar className="w-6 h-6 mx-auto mb-2" />
+              <Hourglass className="w-6 h-6 mx-auto mb-2" />
               <div className="text-sm font-medium">On Hold</div>
               <div className="text-xl font-bold">{onHoldSeats}</div>
             </div>
             <div className="stat-button">
-              <MapPin className="w-6 h-6 mx-auto mb-2" />
+              <Armchair className="w-6 h-6 mx-auto mb-2" />
               <div className="text-sm font-medium">Booked</div>
               <div className="text-xl font-bold">{totalSeats - availableSeats - onHoldSeats}</div>
             </div>
@@ -77,71 +75,46 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
         </CardContent>
       </Card>
 
-      {/* Quick Actions Card */}
       <Card className="app-card">
         <CardContent className="p-6">
           <div className="space-y-4">
-            {/* Current Status */}
             <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
                 <p className="text-[#666666] text-sm mb-1">Current Status</p>
-                <div className="flex items-center gap-2">
-                  <span className="status-active">Active</span>
-                </div>
+                <span className="status-active">Active</span>
               </div>
-              <UserIcon className="w-6 h-6 text-[#002E6E]" />
             </div>
-
-            {/* Allocated Seat */}
             <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
                 <p className="text-[#666666] text-sm mb-2">Allocated Seat</p>
                 <div className="bg-[#00B9F1] text-white px-4 py-2 rounded-lg font-semibold">F2</div>
               </div>
-              <div>
-                <Button className="paytm-button-secondary h-10 text-sm">
-                  Change Seat
-                </Button>
-              </div>
+              <Button className="paytm-button-secondary h-10 text-sm">Change Seat</Button>
             </div>
-
-            {/* Days Remaining */}
             <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
                 <p className="text-[#666666] text-sm mb-1">Days Remaining</p>
                 <p className="text-xl font-bold text-[#333333]">25 Days Left</p>
               </div>
-              <Calendar className="w-6 h-6 text-[#002E6E]" />
             </div>
-
-            {/* Last Payment */}
             <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
                 <p className="text-[#666666] text-sm mb-1">Last Payment</p>
                 <p className="text-lg font-semibold text-[#333333]">₹4000</p>
                 <p className="text-[#666666] text-xs">on 01-June-2025</p>
               </div>
-              <div>
-                <Button className="paytm-button-secondary h-10 text-sm">
-                  All Transactions
-                </Button>
-              </div>
+              <Button className="paytm-button-secondary h-10 text-sm">All Transactions</Button>
             </div>
-
-            {/* Booking Details */}
             <div>
               <p className="text-[#666666] text-sm mb-2">My Booking Details</p>
               <p className="text-[#333333] font-medium mb-1">Seat F2</p>
               <p className="text-[#666666] text-sm mb-4">Booked till 30-June-2025</p>
-              <Button className="paytm-button-secondary w-full h-10 text-sm">
-                Show All Bookings
-              </Button>
+              <Button className="paytm-button-secondary w-full h-10 text-sm">Show All Bookings</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Content Tabs */}
       <Tabs defaultValue="seats" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-lg">
           <TabsTrigger 
@@ -163,15 +136,13 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
             Transactions
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="seats" className="mt-6">
           <SeatLayout user={user} />
         </TabsContent>
-        
         <TabsContent value="bookings" className="mt-6">
           <BookingHistory user={user} />
         </TabsContent>
-        
         <TabsContent value="transactions" className="mt-6">
           <TransactionHistory user={user} />
         </TabsContent>
