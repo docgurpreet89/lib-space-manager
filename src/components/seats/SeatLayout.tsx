@@ -6,6 +6,7 @@ import { SeatBookingModal } from '@/components/seats/SeatBookingModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Footprints , Toilet } from 'lucide-react';
 
 type Seat = Database['public']['Tables']['seats']['Row'];
 type SeatBooking = Database['public']['Tables']['seat_bookings']['Row'];
@@ -26,10 +27,7 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
   useEffect(() => {
     const runCleanupAndFetch = async () => {
       try {
-        // Run cleanup on expired holds + bookings
         await supabase.rpc('cleanup_expired_holds_and_bookings');
-
-        // Load clean data
         await fetchSeats();
         await fetchBookings();
         await fetchHolds();
@@ -40,19 +38,14 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
 
     runCleanupAndFetch();
 
-    // Real-time updates
     const bookingsSubscription = supabase
       .channel('seat_bookings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'seat_bookings' }, () => {
-        fetchBookings();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'seat_bookings' }, fetchBookings)
       .subscribe();
 
     const holdsSubscription = supabase
       .channel('seat_holds')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'seat_holds' }, () => {
-        fetchHolds();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'seat_holds' }, fetchHolds)
       .subscribe();
 
     return () => {
@@ -62,177 +55,110 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
   }, []);
 
   const fetchSeats = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('seats')
-        .select('*')
-        .order('seat_label');
-
-      if (error) throw error;
-      setSeats(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load seats",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase.from('seats').select('*').order('seat_label');
+    if (!error) setSeats(data || []);
+    setLoading(false);
   };
 
   const fetchBookings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('seat_bookings')
-        .select('*')
-        .eq('status', 'approved')
-        .gte('to_time', new Date().toISOString());
-
-      if (error) throw error;
-      setBookings(data || []);
-    } catch (error: any) {
-      console.error('Error fetching bookings:', error);
-    }
+    const { data } = await supabase
+      .from('seat_bookings')
+      .select('*')
+      .eq('status', 'approved')
+      .gte('to_time', new Date().toISOString());
+    setBookings(data || []);
   };
 
   const fetchHolds = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('seat_holds')
-        .select('*')
-        .gte('lock_expiry', new Date().toISOString());
-
-      if (error) throw error;
-      setHolds(data || []);
-    } catch (error: any) {
-      console.error('Error fetching holds:', error);
-    }
+    const { data } = await supabase
+      .from('seat_holds')
+      .select('*')
+      .gte('lock_expiry', new Date().toISOString());
+    setHolds(data || []);
   };
 
   const getSeatStatus = (seatId: string) => {
-    const hasBooking = bookings.some(booking => booking.seat_id === seatId);
-    const hasHold = holds.some(hold => hold.seat_id === seatId);
-
-    if (hasBooking) return 'booked';
-    if (hasHold) return 'held';
+    if (bookings.some(b => b.seat_id === seatId)) return 'booked';
+    if (holds.some(h => h.seat_id === seatId)) return 'held';
     return 'available';
-  };
-
-  const getSeatStatusColor = (status: string) => {
-    switch (status) {
-      case 'booked':
-        return 'bg-red-500 hover:bg-red-600 text-white cursor-not-allowed';
-      case 'held':
-        return 'bg-yellow-500 hover:bg-yellow-600 text-white cursor-not-allowed';
-      default:
-        return 'bg-green-500 hover:bg-green-600 text-white cursor-pointer transform hover:scale-105 transition-all duration-200';
-    }
-  };
-
-  const getSeatStatusText = (status: string) => {
-    switch (status) {
-      case 'booked':
-        return 'Booked';
-      case 'held':
-        return 'On Hold';
-      default:
-        return 'Available';
-    }
-  };
-
-  const getLeftSectionSeats = () => {
-    const leftSeats = ['A1', 'A2', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'D4', 'E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3', 'F4'];
-    return seats.filter(seat => leftSeats.includes(seat.seat_label));
-  };
-
-  const getRightSectionSeats = () => {
-    const rightSeats = ['A5', 'A6', 'A7', 'B5', 'B6', 'B7', 'C5', 'C6', 'C7', 'D5', 'D6', 'D7', 'E5', 'E6', 'E7', 'F5', 'F6', 'F7', 'G5', 'G6', 'G7', 'H5', 'H6', 'H7', 'I5', 'I6', 'I7', 'J5', 'J6', 'J7'];
-    return seats.filter(seat => rightSeats.includes(seat.seat_label));
   };
 
   const renderSeat = (seat: Seat) => {
     const status = getSeatStatus(seat.seat_id);
+    let classes = 'w-10 h-10 m-1 rounded flex items-center justify-center font-bold text-xs';
+
+    if (status === 'available') {
+      classes += ' bg-green-500 text-white cursor-pointer hover:bg-green-600';
+    } else if (status === 'held') {
+      classes += ' bg-yellow-500 text-white cursor-not-allowed';
+    } else {
+      classes += ' bg-red-500 text-white cursor-not-allowed';
+    }
+
     return (
       <div
         key={seat.seat_id}
         onClick={() => status === 'available' && setSelectedSeat(seat)}
-        className={`w-10 h-10 m-2 rounded flex items-center justify-center cursor-pointer font-bold text-xs transition-all duration-200 ${
-          status === 'available' 
-            ? 'bg-gray-300 hover:bg-green-500 hover:text-white hover:scale-105' 
-            : status === 'held'
-            ? 'bg-yellow-500 text-white cursor-not-allowed'
-            : 'bg-red-500 text-white cursor-not-allowed'
-        }`}
+        className={classes}
       >
         {seat.seat_label}
       </div>
     );
   };
 
-  const renderLeftSection = () => {
-    const leftSeats = getLeftSectionSeats();
-    const rows = [
-      ['A1', 'A2'],
-      ['B1', 'B2', 'B3', 'B4'],
-      ['C1', 'C2', 'C3', 'C4'],
-      ['D1', 'D2', 'D3', 'D4'],
-      ['E1', 'E2', 'E3', 'E4'],
-      ['F1', 'F2', 'F3', 'F4']
-    ];
-
-    return (
-      <div className="flex flex-col">
-        {rows.map((rowLabels, index) => (
-          <div key={index} className="flex justify-end">
-            {rowLabels.map(label => {
+  const sectionLayout = (
+    leftRows: string[][],
+    rightRows: string[][],
+    leftSeats: Seat[],
+    rightSeats: Seat[]
+  ) => (
+    <div className="flex justify-center gap-4 flex-wrap md:flex-nowrap">
+      <div>
+        {leftRows.map((row, i) => (
+          <div key={i} className="flex justify-end">
+            {row.map(label => {
               const seat = leftSeats.find(s => s.seat_label === label);
               return seat ? renderSeat(seat) : null;
             })}
           </div>
         ))}
-        
-        {/* Stairs and Washroom */}
         <div className="flex mt-4">
-          <div className="w-1/2 h-32 bg-gray-200 m-2 flex items-center justify-center border border-gray-400 font-bold text-sm bg-gradient-to-t from-gray-300 to-gray-100">
-            Stairs
+          {/* Stairs */}
+          <div className="w-1/2 h-32 bg-gray-200 m-2 flex items-center justify-center border border-gray-400">
+            <Footprints className="w-6 h-6 text-gray-700" />
           </div>
-          <div className="w-1/2 h-32 bg-gray-200 m-2 flex items-center justify-center border border-gray-400 font-bold text-sm">
-            Washroom
+
+          {/* Washrooms stack */}
+          <div className="w-1/2 flex flex-col">
+            <div className="h-14 bg-gray-200 m-2 flex items-center justify-center border border-gray-400">
+              <Toilet className="w-6 h-6 text-gray-700" />
+            </div>
+            <div className="h-14 bg-gray-200 m-2 flex items-center justify-center border border-gray-400">
+              <Toilet className="w-6 h-6 text-gray-700" />
+            </div>
           </div>
         </div>
+
       </div>
-    );
-  };
 
-  const renderRightSection = () => {
-    const rightSeats = getRightSectionSeats();
-    const rows = [
-      ['A5', 'A6', 'A7'],
-      ['B5', 'B6', 'B7'],
-      ['C5', 'C6', 'C7'],
-      ['D5', 'D6', 'D7'],
-      ['E5', 'E6', 'E7'],
-      ['F5', 'F6', 'F7'],
-      ['G5', 'G6', 'G7'],
-      ['H5', 'H6', 'H7'],
-      ['I5', 'I6', 'I7'],
-      ['J5', 'J6', 'J7']
-    ];
+      <div className="relative w-16 flex flex-col justify-center items-center">
+        <div className="absolute top-0 bottom-0 left-2 w-px bg-gray-400"></div>
+        <div className="absolute top-0 bottom-0 right-2 w-px bg-gray-400"></div>
+        <div className="rotate-90 text-sm text-gray-500">Passage</div>
+      </div>
 
-    return (
-      <div className="flex flex-col">
-        {rows.map((rowLabels, index) => (
-          <div key={index} className="flex">
-            {rowLabels.map(label => {
+      <div>
+        {rightRows.map((row, i) => (
+          <div key={i} className="flex">
+            {row.map(label => {
               const seat = rightSeats.find(s => s.seat_label === label);
               return seat ? renderSeat(seat) : null;
             })}
           </div>
         ))}
       </div>
-    );
-  };
+    </div>
+  );
 
   if (loading) {
     return (
@@ -246,64 +172,49 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
     );
   }
 
+  const leftRows = [
+    ['A1', 'A2'],
+    ['B1', 'B2', 'B3', 'B4'],
+    ['C1', 'C2', 'C3', 'C4'],
+    ['D1', 'D2', 'D3', 'D4'],
+    ['E1', 'E2', 'E3', 'E4'],
+    ['F1', 'F2', 'F3', 'F4']
+  ];
+  const rightRows = [
+    ['A5', 'A6', 'A7'],
+    ['B5', 'B6', 'B7'],
+    ['C5', 'C6', 'C7'],
+    ['D5', 'D6', 'D7'],
+    ['E5', 'E6', 'E7'],
+    ['F5', 'F6', 'F7'],
+    ['G5', 'G6', 'G7'],
+    ['H5', 'H6', 'H7'],
+    ['I5', 'I6', 'I7'],
+    ['J5', 'J6', 'J7']
+  ];
+  const leftSeats = seats.filter(s => leftRows.flat().includes(s.seat_label));
+  const rightSeats = seats.filter(s => rightRows.flat().includes(s.seat_label));
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex justify-between items-center">
             Library Seat Layout
-            <div className="flex space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-300 rounded"></div>
-                <span>Available</span>
+            <div className="flex gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-green-500"></div> Available
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                <span>On Hold</span>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-yellow-500"></div> On Hold
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
-                <span>Booked</span>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-red-500"></div> Booked
               </div>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-stretch">
-            {/* Left Section */}
-            <div className="flex-shrink-0">
-              {renderLeftSection()}
-            </div>
-
-            {/* Aisle */}
-            <div className="relative w-16 mx-4 bg-gray-50 flex items-center justify-center">
-              <div className="absolute top-0 bottom-0 left-2 w-0.5 bg-gray-400"></div>
-              <div className="absolute top-0 bottom-0 right-2 w-0.5 bg-gray-400"></div>
-              <div className="transform rotate-90 font-bold text-gray-600 text-sm whitespace-nowrap">
-                AISLE
-              </div>
-            </div>
-
-            {/* Right Section */}
-            <div className="flex-shrink-0">
-              {renderRightSection()}
-            </div>
-          </div>
-
-          {/* Mobile Layout */}
-          <div className="md:hidden block mt-8">
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-3">Left Section</h3>
-                {renderLeftSection()}
-              </div>
-              <div>
-                <h3 className="font-semibold mb-3">Right Section</h3>
-                {renderRightSection()}
-              </div>
-            </div>
-          </div>
-        </CardContent>
+        <CardContent>{sectionLayout(leftRows, rightRows, leftSeats, rightSeats)}</CardContent>
       </Card>
 
       {selectedSeat && (
@@ -316,8 +227,8 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
             setSelectedSeat(null);
             fetchHolds();
             toast({
-              title: "Booking Submitted",
-              description: "Your booking request has been submitted for approval.",
+              title: 'Booking Submitted',
+              description: 'Your booking request has been submitted for approval.',
             });
           }}
         />
