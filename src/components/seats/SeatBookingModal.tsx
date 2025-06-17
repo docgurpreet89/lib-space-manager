@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,13 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 type Seat = Database['public']['Tables']['seats']['Row'];
 
@@ -85,8 +79,9 @@ export const SeatBookingModal = ({ seat, user, isOpen, onClose, onBookingSuccess
 
     try {
       const durationNum = parseInt(formData.duration);
-      const fromTime = dayjs().tz("Asia/Kolkata");
-      const toTime = fromTime.add(durationNum, 'month');
+      const fromTime = new Date();
+      const toTime = new Date();
+      toTime.setMonth(toTime.getMonth() + durationNum);
       const price = calculatePrice(durationNum);
 
       const { error } = await supabase.rpc('process_seat_booking', {

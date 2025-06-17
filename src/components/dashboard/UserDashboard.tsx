@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,7 +6,6 @@ import { SeatLayout } from '@/components/seats/SeatLayout';
 import { BookingHistory } from '@/components/bookings/BookingHistory';
 import { TransactionHistory } from '@/components/transactions/TransactionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import CountUp from 'react-countup';
 
 interface UserDashboardProps {
   user: User;
@@ -57,21 +57,21 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
         <div className="bg-white shadow rounded p-6 text-center">
           <div className="text-gray-600 text-sm">Total Seats</div>
           <div className="text-3xl font-bold text-blue-600">
-            <CountUp end={totalSeats} duration={1} />
+            {totalSeats}
           </div>
         </div>
 
         <div className="bg-white shadow rounded p-6 text-center">
           <div className="text-gray-600 text-sm">Available Seats</div>
           <div className="text-3xl font-bold text-green-600">
-            <CountUp end={availableSeats} duration={1} />
+            {availableSeats}
           </div>
         </div>
 
         <div className="bg-white shadow rounded p-6 text-center">
           <div className="text-gray-600 text-sm">On Hold Seats</div>
           <div className="text-3xl font-bold text-yellow-600">
-            <CountUp end={onHoldSeats} duration={1} />
+            {onHoldSeats}
           </div>
         </div>
       </div>
