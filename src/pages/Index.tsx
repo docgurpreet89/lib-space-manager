@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthForm } from '@/components/auth/AuthForm';
+// import { AuthForm } from '@/components/auth/AuthForm';
+import { AppStyleAuthForm } from '@/components/auth/AppStyleAuthForm';
 import { UserDashboard } from '@/components/dashboard/UserDashboard';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
 import { LibraryNavbar } from '@/components/layout/LibraryNavbar';
@@ -73,18 +74,22 @@ const Index = () => {
 
   if (!user) {
     return (
+      // <div className="app-container min-h-screen">
+      //   <div className="container mx-auto px-4 py-8">
+      //     <div className="text-center mb-12 mt-8">
+      //       <h1 className="app-logo text-5xl md:text-6xl mb-4">
+      //         अध्ययन Library
+      //       </h1>
+      //       <p className="text-xl text-[#666666] font-light">
+      //         Your Premium Study Space
+      //       </p>
+      //     </div>
+      //     {/*<AuthForm />*/}
+      //     <AppStyleAuthForm />
+      //   </div>
+      // </div>
       <div className="app-container min-h-screen">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-12 mt-8">
-            <h1 className="app-logo text-5xl md:text-6xl mb-4">
-              अध्ययन Library
-            </h1>
-            <p className="text-xl text-[#666666] font-light">
-              Your Premium Study Space
-            </p>
-          </div>
-          <AuthForm />
-        </div>
+        <AppStyleAuthForm />
       </div>
     );
   }
