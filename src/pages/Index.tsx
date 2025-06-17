@@ -13,6 +13,23 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Create floating particles
+    const createParticles = () => {
+      const container = document.querySelector('.floating-particles');
+      if (!container) return;
+
+      for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 20 + 's';
+        particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+        container.appendChild(particle);
+      }
+    };
+
+    createParticles();
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -62,22 +79,27 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen animated-bg flex items-center justify-center relative">
+        <div className="floating-particles"></div>
+        <div className="glass-card p-8 rounded-2xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-center mt-4 text-gray-300">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              📚 Library Seat Booking System
+      <div className="min-h-screen animated-bg relative">
+        <div className="floating-particles"></div>
+        <div className="mobile-container min-h-screen flex flex-col justify-center relative z-10">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-['Playfair_Display'] font-bold text-gradient mb-4">
+              अध्ययन Library
             </h1>
-            <p className="text-xl text-gray-600">
-              Reserve your perfect study spot with ease
+            <p className="text-xl text-gray-300">
+              Your Premium Study Space
             </p>
           </div>
           <AuthForm />
@@ -87,9 +109,10 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen animated-bg relative">
+      <div className="floating-particles"></div>
       <LibraryNavbar user={user} userRole={userRole} />
-      <main className="container mx-auto px-4 py-8">
+      <main className="mobile-container relative z-10">
         {userRole === 'admin' ? (
           <AdminDashboard user={user} />
         ) : (

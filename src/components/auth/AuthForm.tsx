@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -94,21 +97,12 @@ export const AuthForm = () => {
 
       if (finalRoleError) throw finalRoleError;
 
-      if (finalRoleError) throw finalRoleError;
-
-      // Optional: toast, no need for delay
       toast({
         title: "Welcome!",
         description: "Logged in successfully.",
       });
 
-      // Navigate to root (your router decides what to show)
       navigate('/');
-
-      toast({
-        title: "Welcome!",
-        description: "Logged in successfully.",
-      });
 
     } catch (error: any) {
       toast({
@@ -185,95 +179,153 @@ export const AuthForm = () => {
   };
 
   return (
-    <div className="flex justify-center">
-      <Card className="w-full max-w-md shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Sign In' : 'Create Account'}
+    <div className="w-full max-w-sm mx-auto">
+      <Card className="glass-card border-0">
+        <CardHeader className="text-center pb-6">
+          <CardTitle className="text-2xl font-semibold text-white">
+            {isLogin ? 'Welcome Back' : 'Join Us'}
           </CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardDescription className="text-gray-400">
             {isLogin 
-              ? 'Enter your credentials to access your account'
-              : 'Fill in your details to create a new account'
+              ? 'Sign in to your account'
+              : 'Create your account'
             }
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           {isLogin ? (
             <form onSubmit={handleLogin} className="space-y-4">
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={loginData.email}
-                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={loginData.password}
-                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                required
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Email</label>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                  className="cred-input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                    className="cred-input pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
               <Button 
                 type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full glow-button text-white font-semibold py-3 rounded-xl"
                 disabled={loading}
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
+              <div className="text-center">
+                <a href="#" className="text-primary hover:text-primary/80 text-sm">
+                  Forgot Password?
+                </a>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
-              <Input
-                type="text"
-                placeholder="Full Name"
-                value={registerData.fullName}
-                onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
-                required
-              />
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={registerData.email}
-                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                required
-              />
-              <Input
-                type="tel"
-                placeholder="Phone number"
-                value={registerData.phone}
-                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={registerData.password}
-                onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Confirm Password"
-                value={registerData.confirmPassword}
-                onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                required
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Full Name</label>
+                <Input
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={registerData.fullName}
+                  onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
+                  className="cred-input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Email</label>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={registerData.email}
+                  onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                  className="cred-input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Phone</label>
+                <Input
+                  type="tel"
+                  placeholder="Enter your phone number"
+                  value={registerData.phone}
+                  onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                  className="cred-input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create a password"
+                    value={registerData.password}
+                    onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                    className="cred-input pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Confirm Password</label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    value={registerData.confirmPassword}
+                    onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                    className="cred-input pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
               <Button 
                 type="submit" 
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full glow-button text-white font-semibold py-3 rounded-xl"
                 disabled={loading}
               >
                 {loading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
           )}
-          <div className="mt-4 text-center">
-            <Button 
+          <div className="text-center pt-4">
+            <button 
               type="button" 
-              variant="ghost"
-              className="w-full"
               onClick={() => {
                 setIsLogin(!isLogin);
                 setLoginData({ email: '', password: '' });
@@ -285,12 +337,13 @@ export const AuthForm = () => {
                   confirmPassword: ''
                 });
               }}
+              className="text-primary hover:text-primary/80 text-sm font-medium"
             >
               {isLogin 
                 ? "Don't have an account? Sign up" 
                 : "Already have an account? Sign in"
               }
-            </Button>
+            </button>
           </div>
         </CardContent>
       </Card>
