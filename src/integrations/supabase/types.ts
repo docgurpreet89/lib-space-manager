@@ -59,6 +59,7 @@ export type Database = {
           booking_id: string
           created_at: string | null
           from_time: string
+          price: number | null
           seat_id: string | null
           status: string | null
           to_time: string
@@ -71,6 +72,7 @@ export type Database = {
           booking_id?: string
           created_at?: string | null
           from_time: string
+          price?: number | null
           seat_id?: string | null
           status?: string | null
           to_time: string
@@ -83,6 +85,7 @@ export type Database = {
           booking_id?: string
           created_at?: string | null
           from_time?: string
+          price?: number | null
           seat_id?: string | null
           status?: string | null
           to_time?: string
@@ -317,9 +320,36 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      cleanup_expired_holds_and_bookings: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       confirm_booking: {
         Args: { p_booking_id: string }
         Returns: boolean
+      }
+      process_seat_booking: {
+        Args:
+          | {
+              _seat_id: string
+              _user_id: string
+              _user_name: string
+              _user_email: string
+              _user_phone: string
+              _from: string
+              _to: string
+            }
+          | {
+              _seat_id: string
+              _user_id: string
+              _user_name: string
+              _user_email: string
+              _user_phone: string
+              _from: string
+              _to: string
+              _price: number
+            }
+        Returns: undefined
       }
     }
     Enums: {
