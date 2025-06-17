@@ -1,118 +1,79 @@
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const [loginData, setLoginData] = useState({
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
     email: '',
-    password: ''
-  });
-
-  const [registerData, setRegisterData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    fullName: '',
+    phone: ''
   });
+  const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
-      });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
 
-      if (error) throw error;
-      const user = data.user;
-      if (!user) throw new Error("Login succeeded but no user data found");
+        if (error) throw error;
 
-      // Check if profile exists
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
+        toast({
+          title: "Welcome back!",
+          description: "You've been successfully signed in.",
+        });
+      } else {
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error("Passwords don't match");
+        }
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName,
+              phone: formData.phone,
+            }
+          }
+        });
 
-      if (!profileData) {
-        const { error: insertProfileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || '',
-            phone: user.user_metadata?.phone || '',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+        if (error) throw error;
+
+        if (data.user) {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: formData.email,
+            full_name: formData.fullName,
+            phone: formData.phone,
           });
-        if (insertProfileError) throw insertProfileError;
+        }
+
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
       }
-
-      // Check if role exists
-      const { data: roleExists, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-
-      if (roleError && roleError.code !== 'PGRST116') {
-        throw roleError;
-      }
-
-      if (!roleExists) {
-        const { error: insertRoleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: user.id,
-            role: 'user'
-          });
-        if (insertRoleError) throw insertRoleError;
-      }
-
-      // Fetch the role again (in case it was just inserted)
-      const { data: finalRole, error: finalRoleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-
-      if (finalRoleError) throw finalRoleError;
-
-      if (finalRoleError) throw finalRoleError;
-
-      // Optional: toast, no need for delay
-      toast({
-        title: "Welcome!",
-        description: "Logged in successfully.",
-      });
-
-      // Navigate to root (your router decides what to show)
-      navigate('/');
-
-      toast({
-        title: "Welcome!",
-        description: "Logged in successfully.",
-      });
-
     } catch (error: any) {
       toast({
-        title: "Login Error",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -121,176 +82,153 @@ export const AuthForm = () => {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (registerData.password !== registerData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (registerData.password.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: registerData.email,
-        password: registerData.password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            full_name: registerData.fullName,
-            phone: registerData.phone,
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Registration Successful!",
-        description: "Please check your email to verify your account.",
-      });
-
-      setRegisterData({
-        fullName: '',
-        email: '',
-        phone: '',
-        password: '',
-        confirmPassword: ''
-      });
-      setIsLogin(true);
-
-    } catch (error: any) {
-      toast({
-        title: "Registration Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="flex justify-center">
-      <Card className="w-full max-w-md shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Sign In' : 'Create Account'}
+    <div className="max-w-md mx-auto">
+      <Card className="app-card border-0 shadow-2xl">
+        <CardHeader className="text-center pb-8">
+          <CardTitle className="text-2xl font-semibold text-white">
+            {isLogin ? 'Welcome Back' : 'Create Account'}
           </CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardDescription className="text-[#CCCCCC] text-base">
             {isLogin 
-              ? 'Enter your credentials to access your account'
-              : 'Fill in your details to create a new account'
+              ? 'Sign in to access your study space' 
+              : 'Join अध्ययन Library today'
             }
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {isLogin ? (
-            <form onSubmit={handleLogin} className="space-y-4">
+        
+        <CardContent className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-white font-medium">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={formData.fullName}
+                    onChange={(e) => handleInputChange('fullName', e.target.value)}
+                    className="app-input h-14 text-base"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-white font-medium">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="app-input h-14 text-base"
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white font-medium">
+                Email
+              </Label>
               <Input
+                id="email"
                 type="email"
-                placeholder="Email address"
-                value={loginData.email}
-                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className="app-input h-14 text-base"
                 required
               />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={loginData.password}
-                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                required
-              />
-              <Button 
-                type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={loading}
-              >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <Input
-                type="text"
-                placeholder="Full Name"
-                value={registerData.fullName}
-                onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
-                required
-              />
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={registerData.email}
-                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                required
-              />
-              <Input
-                type="tel"
-                placeholder="Phone number"
-                value={registerData.phone}
-                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={registerData.password}
-                onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Confirm Password"
-                value={registerData.confirmPassword}
-                onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                required
-              />
-              <Button 
-                type="submit" 
-                className="w-full bg-green-600 hover:bg-green-700"
-                disabled={loading}
-              >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </Button>
-            </form>
-          )}
-          <div className="mt-4 text-center">
-            <Button 
-              type="button" 
-              variant="ghost"
-              className="w-full"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setLoginData({ email: '', password: '' });
-                setRegisterData({
-                  fullName: '',
-                  email: '',
-                  phone: '',
-                  password: '',
-                  confirmPassword: ''
-                });
-              }}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-white font-medium">
+                Password
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  className="app-input h-14 text-base pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCCCCC] hover:text-[#00FFFF] transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+            
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-white font-medium">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    className="app-input h-14 text-base pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCCCCC] hover:text-[#00FFFF] transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <Button
+              type="submit"
+              disabled={loading}
+              className="cred-button w-full h-14 text-base font-semibold"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
-              }
+              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
+          </form>
+          
+          {isLogin && (
+            <div className="text-center">
+              <button className="text-[#00FFFF] hover:text-[#00CED1] transition-colors text-sm font-medium">
+                Forgot Password?
+              </button>
+            </div>
+          )}
+          
+          <div className="text-center pt-4 border-t border-gray-700">
+            <p className="text-[#CCCCCC] mb-3">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}
+            </p>
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="cred-button-secondary w-full h-12 text-sm font-medium"
+            >
+              {isLogin ? 'Create Account' : 'Sign In'}
+            </button>
           </div>
         </CardContent>
       </Card>

@@ -62,22 +62,32 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="app-container flex items-center justify-center">
+        <div className="app-card p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#00FFFF] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-[#CCCCCC]">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              📚 Library Seat Booking System
+      <div className="app-container min-h-screen relative overflow-hidden">
+        {/* Floating particles background */}
+        <div className="floating-particle w-3 h-3 top-[10%] left-[20%]"></div>
+        <div className="floating-particle w-2 h-2 top-[20%] right-[30%]"></div>
+        <div className="floating-particle w-4 h-4 top-[60%] left-[10%]"></div>
+        <div className="floating-particle w-2 h-2 bottom-[20%] right-[20%]"></div>
+        <div className="floating-particle w-3 h-3 bottom-[40%] left-[70%]"></div>
+        
+        <div className="container mx-auto px-4 py-8 relative z-10">
+          <div className="text-center mb-12 mt-8">
+            <h1 className="app-logo text-5xl md:text-6xl mb-4">
+              अध्ययन Library
             </h1>
-            <p className="text-xl text-gray-600">
-              Reserve your perfect study spot with ease
+            <p className="text-xl text-[#CCCCCC] font-light">
+              Your Premium Study Space
             </p>
           </div>
           <AuthForm />
@@ -87,9 +97,9 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="app-container min-h-screen">
       <LibraryNavbar user={user} userRole={userRole} />
-      <main className="container mx-auto px-4 py-8">
+      <main className="pb-safe">
         {userRole === 'admin' ? (
           <AdminDashboard user={user} />
         ) : (
