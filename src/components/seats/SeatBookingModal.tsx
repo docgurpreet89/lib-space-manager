@@ -9,6 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 type Seat = Database['public']['Tables']['seats']['Row'];
 
 interface SeatBookingModalProps {
@@ -22,36 +29,83 @@ interface SeatBookingModalProps {
 export const SeatBookingModal = ({ seat, user, isOpen, onClose, onBookingSuccess }: SeatBookingModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
-    email: user.email || '',
     phone: '',
-    duration: '2',
+    email: user.email || '',
+    duration: '1'
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const baseRate = 4000;
+  const discountMap: { [key: number]: number } = {
+    1: 1,
+    2: 0.97,
+    3: 0.94,
+    4: 0.91,
+    5: 0.88,
+    6: 0.85,
+    7: 0.833,
+    8: 0.817,
+    9: 0.80,
+    10: 0.783,
+    11: 0.767,
+    12: 0.75
+  };
+
+  const calculatePrice = (duration: number) => {
+    const discount = discountMap[duration] || 1;
+    return Math.round(baseRate * duration * discount);
+  };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to load profile:', error.message);
+      } else if (data) {
+        setFormData(prev => ({
+          ...prev,
+          name: data.full_name || '',
+          phone: data.phone || ''
+        }));
+      }
+    };
+
+    fetchProfile();
+  }, [user.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Calculate from and to times
-      const fromTime = new Date();
-      const toTime = new Date(fromTime.getTime() + parseInt(formData.duration) * 60 * 60 * 1000);
+      const durationNum = parseInt(formData.duration);
+      const fromTime = dayjs().tz("Asia/Kolkata");
+      const toTime = fromTime.add(durationNum, 'month');
+      const price = calculatePrice(durationNum);
 
-      // Call the book_seat function
-      const { data, error } = await supabase
-        .rpc('process_seat_booking', {
-          _seat_id: seat.seat_id,
-          _user_id: user.id,
-          _user_name: formData.name,
-          _user_email: formData.email,
-          _user_phone: formData.phone,
-          _from: fromTime.toISOString(),
-          _to: toTime.toISOString()
-        });
-
+      const { error } = await supabase.rpc('process_seat_booking', {
+        _seat_id: seat.seat_id,
+        _user_id: user.id,
+        _user_name: formData.name,
+        _user_email: formData.email,
+        _user_phone: formData.phone,
+        _from: fromTime.toISOString(),
+        _to: toTime.toISOString(),
+        _price: price
+      });
 
       if (error) throw error;
+
+      toast({
+        title: "Booking Submitted",
+        description: `Your booking request for ₹${price} is pending admin approval.`,
+      });
 
       onBookingSuccess();
     } catch (error: any) {
@@ -92,6 +146,17 @@ export const SeatBookingModal = ({ seat, user, isOpen, onClose, onBookingSuccess
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="Enter your phone number"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -104,32 +169,40 @@ export const SeatBookingModal = ({ seat, user, isOpen, onClose, onBookingSuccess
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              placeholder="Enter your phone number"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="duration">Duration</Label>
+            <Label htmlFor="duration">Duration (months)</Label>
             <Select value={formData.duration} onValueChange={(value) => handleInputChange('duration', value)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select duration" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">1 Hour</SelectItem>
-                <SelectItem value="2">2 Hours</SelectItem>
-                <SelectItem value="3">3 Hours</SelectItem>
-                <SelectItem value="4">4 Hours</SelectItem>
-                <SelectItem value="6">6 Hours</SelectItem>
-                <SelectItem value="8">8 Hours</SelectItem>
+                {[...Array(12)].map((_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    {i + 1} {i + 1 === 1 ? 'month' : 'months'}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          {formData.duration && (() => {
+            const durationNum = parseInt(formData.duration);
+            const discount = discountMap[durationNum] || 1;
+            const originalPrice = baseRate * durationNum;
+            const discountedPrice = calculatePrice(durationNum);
+            const discountPercent = Math.round((1 - discount) * 100);
+
+            return (
+              <div className="text-right text-sm">
+                Original: <span className="line-through text-gray-500">₹ {originalPrice}</span> | 
+                <span className="text-lg font-bold text-green-600 ml-1">Discounted: ₹ {discountedPrice}</span>
+                {discountPercent > 0 && (
+                  <div className="text-blue-600 text-sm">
+                    You save: {discountPercent}%
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="flex space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
