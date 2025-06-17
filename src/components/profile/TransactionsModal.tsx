@@ -1,46 +1,38 @@
 
-import { X, CreditCard } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { CreditCard, Calendar } from 'lucide-react';
 
 interface TransactionsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Dummy transaction data
 const dummyTransactions = [
   {
-    id: '1',
+    id: 1,
     amount: 4000,
     date: '2025-06-01',
-    description: 'Monthly Membership Fee',
-    status: 'completed'
+    description: 'Monthly Library Fee',
+    status: 'Success'
   },
   {
-    id: '2',
+    id: 2,
     amount: 3500,
     date: '2025-05-01',
-    description: 'Monthly Membership Fee',
-    status: 'completed'
+    description: 'Monthly Library Fee',
+    status: 'Success'
   },
   {
-    id: '3',
+    id: 3,
     amount: 5000,
     date: '2025-04-01',
-    description: 'Monthly Membership Fee + Seat Change',
-    status: 'completed'
-  },
-  {
-    id: '4',
-    amount: 4000,
-    date: '2025-03-01',
-    description: 'Monthly Membership Fee',
-    status: 'completed'
+    description: 'Quarterly Library Fee',
+    status: 'Success'
   }
 ];
 
 export const TransactionsModal = ({ isOpen, onClose }: TransactionsModalProps) => {
-  if (!isOpen) return null;
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -50,54 +42,47 @@ export const TransactionsModal = ({ isOpen, onClose }: TransactionsModalProps) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="app-card w-full max-w-md border-0 shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-[#333]">
-          <h2 className="text-xl font-semibold text-white">My Transactions</h2>
-          <button
-            onClick={onClose}
-            className="text-[#CCCCCC] hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-white border border-[#E0E0E0] shadow-xl rounded-xl max-w-md mx-auto max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-[#333333] text-xl font-semibold">My Transactions</DialogTitle>
+        </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4">
-            {dummyTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="bg-[#2A2A2E] rounded-xl p-4 border border-[#333]"
-              >
-                <div className="flex items-center justify-between mb-2">
+        <div className="space-y-4 py-4">
+          {dummyTransactions.map((transaction) => (
+            <Card key={transaction.id} className="app-card border border-[#E0E0E0]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00FFFF] to-[#00CED1] flex items-center justify-center">
-                      <CreditCard size={18} className="text-black" />
+                    <div className="w-10 h-10 rounded-full bg-[#00B9F1] flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">₹{transaction.amount}</p>
-                      <p className="text-[#CCCCCC] text-sm">{formatDate(transaction.date)}</p>
+                      <p className="text-[#333333] font-medium">{transaction.description}</p>
+                      <div className="flex items-center gap-2 text-[#666666] text-sm">
+                        <Calendar className="w-4 h-4" />
+                        {formatDate(transaction.date)}
+                      </div>
                     </div>
                   </div>
-                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full">
-                    Completed
-                  </span>
+                  <div className="text-right">
+                    <p className="text-[#333333] font-semibold text-lg">₹{transaction.amount}</p>
+                    <span className="bg-[#34C759] text-white text-xs px-2 py-1 rounded-full">
+                      {transaction.status}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-[#CCCCCC] text-sm">{transaction.description}</p>
-              </div>
-            ))}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          {dummyTransactions.length === 0 && (
+            <div className="text-center py-8 text-[#666666]">
+              No transactions found.
+            </div>
+          )}
         </div>
-        
-        <div className="p-6 border-t border-[#333]">
-          <button
-            onClick={onClose}
-            className="cred-button-secondary w-full h-12"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

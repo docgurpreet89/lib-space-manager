@@ -6,9 +6,9 @@ import { SeatLayout } from '@/components/seats/SeatLayout';
 import { BookingHistory } from '@/components/bookings/BookingHistory';
 import { TransactionHistory } from '@/components/transactions/TransactionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, CreditCard, MapPin, User as UserIcon } from 'lucide-react';
+import { Calendar, CreditCard, MapPin, User as UserIcon, Users, CheckCircle } from 'lucide-react';
 
 interface UserDashboardProps {
   user: User;
@@ -45,98 +45,120 @@ export const UserDashboard = ({ user }: UserDashboardProps) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#121212] p-4 space-y-6">
-      {/* Status Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 mb-6">
-        {/* Current Status Card */}
-        <Card className="app-card border-0">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[#CCCCCC] text-sm mb-1">Current Status</p>
-              <div className="flex items-center gap-2">
-                <span className="status-active">Active</span>
-              </div>
-              <p className="text-[#CCCCCC] text-xs mt-2">Your membership is active</p>
+    <div className="min-h-screen bg-white p-4 space-y-4">
+      {/* Library Stats Card */}
+      <Card className="app-card">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-[#333333] text-lg font-semibold">Library Stats</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="stat-button">
+              <Users className="w-6 h-6 mx-auto mb-2" />
+              <div className="text-sm font-medium">Total Seats</div>
+              <div className="text-xl font-bold">{totalSeats}</div>
             </div>
-            <UserIcon className="w-8 h-8 text-[#00FFFF]" />
-          </CardContent>
-        </Card>
+            <div className="stat-button">
+              <CheckCircle className="w-6 h-6 mx-auto mb-2" />
+              <div className="text-sm font-medium">Available</div>
+              <div className="text-xl font-bold">{availableSeats}</div>
+            </div>
+            <div className="stat-button">
+              <Calendar className="w-6 h-6 mx-auto mb-2" />
+              <div className="text-sm font-medium">On Hold</div>
+              <div className="text-xl font-bold">{onHoldSeats}</div>
+            </div>
+            <div className="stat-button">
+              <MapPin className="w-6 h-6 mx-auto mb-2" />
+              <div className="text-sm font-medium">Booked</div>
+              <div className="text-xl font-bold">{totalSeats - availableSeats - onHoldSeats}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Allocated Seat Card */}
-        <Card className="app-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
+      {/* Quick Actions Card */}
+      <Card className="app-card">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {/* Current Status */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
-                <p className="text-[#CCCCCC] text-sm mb-2">Allocated Seat</p>
-                <div className="seat-label">F2</div>
+                <p className="text-[#666666] text-sm mb-1">Current Status</p>
+                <div className="flex items-center gap-2">
+                  <span className="status-active">Active</span>
+                </div>
               </div>
-              <MapPin className="w-8 h-8 text-[#00FFFF]" />
+              <UserIcon className="w-6 h-6 text-[#002E6E]" />
             </div>
-            <Button className="cred-button-secondary w-full h-10 text-sm">
-              Change Seat
-            </Button>
-          </CardContent>
-        </Card>
 
-        {/* Days Remaining Card */}
-        <Card className="app-card border-0">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[#CCCCCC] text-sm mb-1">Days Remaining</p>
-              <p className="text-2xl font-bold text-white">25 Days Left</p>
-            </div>
-            <Calendar className="w-8 h-8 text-[#00FFFF]" />
-          </CardContent>
-        </Card>
-
-        {/* Last Payment Card */}
-        <Card className="app-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
+            {/* Allocated Seat */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
               <div>
-                <p className="text-[#CCCCCC] text-sm mb-1">Last Payment</p>
-                <p className="text-xl font-semibold text-white">₹4000</p>
-                <p className="text-[#CCCCCC] text-xs">on 01-June-2025</p>
+                <p className="text-[#666666] text-sm mb-2">Allocated Seat</p>
+                <div className="bg-[#00B9F1] text-white px-4 py-2 rounded-lg font-semibold">F2</div>
               </div>
-              <CreditCard className="w-8 h-8 text-[#00FFFF]" />
+              <div>
+                <Button className="paytm-button-secondary h-10 text-sm">
+                  Change Seat
+                </Button>
+              </div>
             </div>
-            <Button className="cred-button-secondary w-full h-10 text-sm">
-              Show All Transactions
-            </Button>
-          </CardContent>
-        </Card>
 
-        {/* Booking Details Card */}
-        <Card className="app-card border-0">
-          <CardContent className="p-6">
-            <p className="text-[#CCCCCC] text-sm mb-2">My Booking Details</p>
-            <p className="text-white font-medium mb-1">Seat F2</p>
-            <p className="text-[#CCCCCC] text-sm mb-4">Booked till 30-June-2025</p>
-            <Button className="cred-button-secondary w-full h-10 text-sm">
-              Show All Bookings
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Days Remaining */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
+              <div>
+                <p className="text-[#666666] text-sm mb-1">Days Remaining</p>
+                <p className="text-xl font-bold text-[#333333]">25 Days Left</p>
+              </div>
+              <Calendar className="w-6 h-6 text-[#002E6E]" />
+            </div>
+
+            {/* Last Payment */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#E0E0E0]">
+              <div>
+                <p className="text-[#666666] text-sm mb-1">Last Payment</p>
+                <p className="text-lg font-semibold text-[#333333]">₹4000</p>
+                <p className="text-[#666666] text-xs">on 01-June-2025</p>
+              </div>
+              <div>
+                <Button className="paytm-button-secondary h-10 text-sm">
+                  All Transactions
+                </Button>
+              </div>
+            </div>
+
+            {/* Booking Details */}
+            <div>
+              <p className="text-[#666666] text-sm mb-2">My Booking Details</p>
+              <p className="text-[#333333] font-medium mb-1">Seat F2</p>
+              <p className="text-[#666666] text-sm mb-4">Booked till 30-June-2025</p>
+              <Button className="paytm-button-secondary w-full h-10 text-sm">
+                Show All Bookings
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="seats" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-[#1C1C1E] border border-[#333] rounded-xl">
+        <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-lg">
           <TabsTrigger 
             value="seats" 
-            className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+            className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-md"
           >
             Book Seat
           </TabsTrigger>
           <TabsTrigger 
             value="bookings" 
-            className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+            className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-md"
           >
             My Bookings
           </TabsTrigger>
           <TabsTrigger 
             value="transactions" 
-            className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+            className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-md"
           >
             Transactions
           </TabsTrigger>

@@ -9,33 +9,33 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
 
-    --primary: 180 100% 50%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 199 100% 47%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 180 100% 41%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 214 100% 21%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 88%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 180 100% 50%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 199 100% 47%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 180 100% 50%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 199 100% 47%;
 
     --radius: 1rem;
   }
@@ -47,7 +47,7 @@
   }
 
   body {
-    @apply bg-[#121212] text-white font-['Poppins'];
+    @apply bg-white text-[#333333] font-['Poppins'];
     margin: 0;
     padding: 0;
     overflow-x: hidden;
@@ -60,126 +60,83 @@
 
 /* Custom mobile app styles */
 .app-container {
-  background: #121212;
+  background: #FFFFFF;
   min-height: 100vh;
   width: 100%;
 }
 
 .app-card {
-  background: rgba(28, 28, 30, 0.9);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.cred-button {
-  background: linear-gradient(135deg, #00FFFF 0%, #00CED1 100%);
+  background: #FFFFFF;
   border: none;
   border-radius: 12px;
-  color: #000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.paytm-button {
+  background: #00B9F1;
+  border: none;
+  border-radius: 8px;
+  color: #FFFFFF;
   font-weight: 600;
   font-family: 'Poppins', sans-serif;
   text-transform: none;
-  box-shadow: 
-    0 4px 15px rgba(0, 255, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
-.cred-button:hover {
+.paytm-button:hover {
+  background: #0095C7;
   transform: translateY(-1px);
-  box-shadow: 
-    0 6px 20px rgba(0, 255, 255, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.cred-button:active {
+.paytm-button:active {
   transform: translateY(0);
-  box-shadow: 
-    0 2px 10px rgba(0, 255, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.cred-button-secondary {
-  background: rgba(28, 28, 30, 0.8);
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  border-radius: 12px;
-  color: #00FFFF;
+.paytm-button-secondary {
+  background: #FFFFFF;
+  border: 1px solid #00B9F1;
+  border-radius: 8px;
+  color: #00B9F1;
   font-weight: 500;
   font-family: 'Poppins', sans-serif;
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
 }
 
-.cred-button-secondary:hover {
-  background: rgba(0, 255, 255, 0.1);
-  border-color: rgba(0, 255, 255, 0.5);
-  transform: translateY(-1px);
+.paytm-button-secondary:hover {
+  background: #F0F9FF;
 }
 
 .app-input {
-  background: rgba(28, 28, 30, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: #FFFFFF;
+  background: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  color: #333333;
   font-family: 'Poppins', sans-serif;
   transition: all 0.2s ease;
 }
 
 .app-input:focus {
-  border-color: #00FFFF;
-  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2);
+  border-color: #00B9F1;
+  box-shadow: 0 0 0 2px rgba(0, 185, 241, 0.2);
   outline: none;
 }
 
 .app-input::placeholder {
-  color: #6C6C6C;
-}
-
-/* Floating particles animation */
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  33% { transform: translateY(-10px) rotate(120deg); }
-  66% { transform: translateY(5px) rotate(240deg); }
-}
-
-.floating-particle {
-  position: absolute;
-  background: radial-gradient(circle, rgba(0,255,255,0.8) 0%, rgba(0,206,209,0.4) 100%);
-  border-radius: 50%;
-  animation: float 6s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.floating-particle:nth-child(odd) {
-  animation-delay: -2s;
-  animation-duration: 8s;
-}
-
-.floating-particle:nth-child(even) {
-  animation-delay: -4s;
-  animation-duration: 10s;
+  color: #666666;
 }
 
 /* Logo style */
 .app-logo {
   font-family: 'Playfair Display', serif;
   font-weight: 600;
-  background: linear-gradient(135deg, #FFFFFF 0%, #00FFFF 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+  color: #002E6E;
 }
 
 /* Status indicators */
 .status-active {
-  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+  background: #00B9F1;
   color: white;
   padding: 4px 12px;
   border-radius: 20px;
@@ -187,13 +144,19 @@
   font-weight: 600;
 }
 
-.seat-label {
-  background: linear-gradient(135deg, #00FFFF 0%, #00CED1 100%);
-  color: #000;
-  padding: 8px 16px;
+.stat-button {
+  background: #00B9F1;
+  color: white;
+  padding: 16px;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 18px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.stat-button:hover {
+  background: #0095C7;
+  transform: translateY(-1px);
 }
 
 /* Mobile optimizations */
@@ -207,10 +170,10 @@
     border-radius: 12px;
   }
   
-  .cred-button {
+  .paytm-button {
     padding: 16px 24px;
     font-size: 16px;
-    border-radius: 12px;
+    border-radius: 8px;
   }
   
   .app-input {

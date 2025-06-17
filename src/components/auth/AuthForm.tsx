@@ -88,12 +88,12 @@ export const AuthForm = () => {
 
   return (
     <div className="max-w-md mx-auto">
-      <Card className="app-card border-0 shadow-2xl">
+      <Card className="app-card border-0 shadow-lg">
         <CardHeader className="text-center pb-8">
-          <CardTitle className="text-2xl font-semibold text-white">
+          <CardTitle className="text-2xl font-semibold text-[#333333]">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </CardTitle>
-          <CardDescription className="text-[#CCCCCC] text-base">
+          <CardDescription className="text-[#666666] text-base">
             {isLogin 
               ? 'Sign in to access your study space' 
               : 'Join अध्ययन Library today'
@@ -106,7 +106,7 @@ export const AuthForm = () => {
             {!isLogin && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-white font-medium">
+                  <Label htmlFor="fullName" className="text-[#333333] font-medium">
                     Full Name
                   </Label>
                   <Input
@@ -121,7 +121,7 @@ export const AuthForm = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white font-medium">
+                  <Label htmlFor="phone" className="text-[#333333] font-medium">
                     Phone Number
                   </Label>
                   <Input
@@ -138,7 +138,7 @@ export const AuthForm = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white font-medium">
+              <Label htmlFor="email" className="text-[#333333] font-medium">
                 Email
               </Label>
               <Input
@@ -153,7 +153,7 @@ export const AuthForm = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white font-medium">
+              <Label htmlFor="password" className="text-[#333333] font-medium">
                 Password
               </Label>
               <div className="relative">
@@ -169,7 +169,7 @@ export const AuthForm = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCCCCC] hover:text-[#00FFFF] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#00B9F1] transition-colors"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -178,7 +178,7 @@ export const AuthForm = () => {
             
             {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-white font-medium">
+                <Label htmlFor="confirmPassword" className="text-[#333333] font-medium">
                   Confirm Password
                 </Label>
                 <div className="relative">
@@ -194,7 +194,7 @@ export const AuthForm = () => {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCCCCC] hover:text-[#00FFFF] transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#00B9F1] transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -205,7 +205,7 @@ export const AuthForm = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="cred-button w-full h-14 text-base font-semibold"
+              className="paytm-button w-full h-14 text-base font-semibold"
             >
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
@@ -213,19 +213,19 @@ export const AuthForm = () => {
           
           {isLogin && (
             <div className="text-center">
-              <button className="text-[#00FFFF] hover:text-[#00CED1] transition-colors text-sm font-medium">
+              <button className="text-[#00B9F1] hover:text-[#0095C7] transition-colors text-sm font-medium">
                 Forgot Password?
               </button>
             </div>
           )}
           
-          <div className="text-center pt-4 border-t border-gray-700">
-            <p className="text-[#CCCCCC] mb-3">
+          <div className="text-center pt-4 border-t border-[#E0E0E0]">
+            <p className="text-[#666666] mb-3">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
             </p>
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="cred-button-secondary w-full h-12 text-sm font-medium"
+              className="paytm-button-secondary w-full h-12 text-sm font-medium"
             >
               {isLogin ? 'Create Account' : 'Sign In'}
             </button>

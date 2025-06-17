@@ -16,7 +16,7 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [showSidebar, setShowSidebar] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#121212] relative">
+    <div className="min-h-screen bg-white relative">
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div 
@@ -27,31 +27,31 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
       
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-80 app-card border-r border-[#333] z-50 transform transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 h-full w-80 app-card border-r border-[#E0E0E0] z-50 transform transition-transform duration-300 ease-in-out
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:z-auto
       `}>
-        <div className="p-6 border-b border-[#333] flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Admin Panel</h2>
+        <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-[#333333]">Admin Panel</h2>
           <Button
             onClick={() => setShowSidebar(false)}
-            className="lg:hidden p-2 hover:bg-[#333] rounded-lg"
+            className="lg:hidden p-2 hover:bg-[#F5F5F5] rounded-lg"
             variant="ghost"
           >
-            <X size={20} className="text-[#CCCCCC]" />
+            <X size={20} className="text-[#666666]" />
           </Button>
         </div>
         
         <nav className="p-4 space-y-2">
-          <a href="#bookings" className="flex items-center gap-3 p-3 rounded-lg text-[#CCCCCC] hover:bg-[#333] hover:text-white transition-colors">
+          <a href="#bookings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
             <Calendar size={20} />
             Pending Bookings
           </a>
-          <a href="#changes" className="flex items-center gap-3 p-3 rounded-lg text-[#CCCCCC] hover:bg-[#333] hover:text-white transition-colors">
+          <a href="#changes" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
             <Users size={20} />
             Seat Changes
           </a>
-          <a href="#settings" className="flex items-center gap-3 p-3 rounded-lg text-[#CCCCCC] hover:bg-[#333] hover:text-white transition-colors">
+          <a href="#settings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
             <Settings size={20} />
             Settings
           </a>
@@ -64,7 +64,7 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
         <div className="lg:hidden mb-6">
           <Button
             onClick={() => setShowSidebar(true)}
-            className="cred-button-secondary p-3"
+            className="paytm-button-secondary p-3"
           >
             <Menu size={20} />
           </Button>
@@ -72,31 +72,31 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
         
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-2">
+            <h2 className="text-3xl font-bold text-[#333333] mb-2">
               Admin Dashboard
             </h2>
-            <p className="text-[#CCCCCC]">
+            <p className="text-[#666666]">
               Manage bookings, seat changes, and library settings
             </p>
           </div>
 
           <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-[#1C1C1E] border border-[#333] rounded-xl">
+            <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl">
               <TabsTrigger 
                 value="bookings" 
-                className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
               >
                 Pending Bookings
               </TabsTrigger>
               <TabsTrigger 
                 value="changes" 
-                className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
               >
                 Seat Changes
               </TabsTrigger>
               <TabsTrigger 
                 value="settings" 
-                className="data-[state=active]:bg-[#00FFFF] data-[state=active]:text-black text-[#CCCCCC] font-medium rounded-lg"
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
               >
                 Settings
               </TabsTrigger>

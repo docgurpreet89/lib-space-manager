@@ -6,7 +6,7 @@ import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { ProfileModal } from '@/components/profile/ProfileModal';
 import { TransactionsModal } from '@/components/profile/TransactionsModal';
-import { Menu, X, User as UserIcon, CreditCard, LogOut } from 'lucide-react';
+import { Bell, User as UserIcon, CreditCard, LogOut } from 'lucide-react';
 
 interface LibraryNavbarProps {
   user: User;
@@ -41,33 +41,23 @@ export const LibraryNavbar = ({ user, userRole }: LibraryNavbarProps) => {
 
   return (
     <>
-      <nav className="bg-[#1C1C1E] border-b border-[#333] sticky top-0 z-40 backdrop-blur-xl">
+      <nav className="bg-white border-b border-[#E0E0E0] sticky top-0 z-40">
         <div className="px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <h1 className="app-logo text-xl font-semibold">
-                अध्ययन Library
-              </h1>
-              {userRole === 'admin' && (
-                <span className="bg-[#00FFFF] text-black text-xs px-2 py-1 rounded-full font-semibold">
-                  Admin
-                </span>
-              )}
-            </div>
-            
+            {/* Left - Profile Icon */}
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00FFFF] to-[#00CED1] flex items-center justify-center text-black font-semibold text-lg shadow-lg"
+                className="w-10 h-10 rounded-full bg-[#00B9F1] flex items-center justify-center text-white font-semibold text-lg shadow-md"
               >
                 {getUserInitial()}
               </button>
               
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 app-card border border-[#333] shadow-xl rounded-xl overflow-hidden">
-                  <div className="p-4 border-b border-[#333]">
-                    <p className="text-white font-medium truncate">{user.email}</p>
-                    <p className="text-[#CCCCCC] text-sm">Welcome back!</p>
+                <div className="absolute left-0 mt-2 w-56 app-card border border-[#E0E0E0] shadow-xl rounded-xl overflow-hidden z-50">
+                  <div className="p-4 border-b border-[#E0E0E0]">
+                    <p className="text-[#333333] font-medium truncate">{user.email}</p>
+                    <p className="text-[#666666] text-sm">Welcome back!</p>
                   </div>
                   
                   <div className="py-2">
@@ -76,9 +66,9 @@ export const LibraryNavbar = ({ user, userRole }: LibraryNavbarProps) => {
                         setShowProfileModal(true);
                         setShowProfileMenu(false);
                       }}
-                      className="w-full px-4 py-3 text-left text-white hover:bg-[#333] flex items-center gap-3 transition-colors"
+                      className="w-full px-4 py-3 text-left text-[#333333] hover:bg-[#F5F5F5] flex items-center gap-3 transition-colors"
                     >
-                      <UserIcon size={18} className="text-[#00FFFF]" />
+                      <UserIcon size={18} className="text-[#002E6E]" />
                       Profile Details
                     </button>
                     
@@ -87,15 +77,15 @@ export const LibraryNavbar = ({ user, userRole }: LibraryNavbarProps) => {
                         setShowTransactionsModal(true);
                         setShowProfileMenu(false);
                       }}
-                      className="w-full px-4 py-3 text-left text-white hover:bg-[#333] flex items-center gap-3 transition-colors"
+                      className="w-full px-4 py-3 text-left text-[#333333] hover:bg-[#F5F5F5] flex items-center gap-3 transition-colors"
                     >
-                      <CreditCard size={18} className="text-[#00FFFF]" />
+                      <CreditCard size={18} className="text-[#002E6E]" />
                       My Transactions
                     </button>
                     
                     <button
                       onClick={handleSignOut}
-                      className="w-full px-4 py-3 text-left text-[#FF3B30] hover:bg-[#333] flex items-center gap-3 transition-colors"
+                      className="w-full px-4 py-3 text-left text-[#FF3B30] hover:bg-[#F5F5F5] flex items-center gap-3 transition-colors"
                     >
                       <LogOut size={18} />
                       Sign Out
@@ -104,6 +94,23 @@ export const LibraryNavbar = ({ user, userRole }: LibraryNavbarProps) => {
                 </div>
               )}
             </div>
+            
+            {/* Center - Logo or empty for clean look */}
+            <div className="flex items-center space-x-3">
+              <h1 className="app-logo text-lg font-semibold">
+                अध्ययन Library
+              </h1>
+              {userRole === 'admin' && (
+                <span className="bg-[#002E6E] text-white text-xs px-2 py-1 rounded-full font-semibold">
+                  Admin
+                </span>
+              )}
+            </div>
+            
+            {/* Right - Notification Bell */}
+            <button className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#002E6E] shadow-sm">
+              <Bell size={20} />
+            </button>
           </div>
         </div>
       </nav>
