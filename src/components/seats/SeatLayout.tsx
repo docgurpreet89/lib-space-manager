@@ -24,11 +24,23 @@ export const SeatLayout = ({ user }: SeatLayoutProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSeats();
-    fetchBookings();
-    fetchHolds();
+    const runCleanupAndFetch = async () => {
+      try {
+        // Run cleanup on expired holds + bookings
+        await supabase.rpc('cleanup_expired_holds_and_bookings');
 
-    // Set up real-time subscriptions
+        // Load clean data
+        await fetchSeats();
+        await fetchBookings();
+        await fetchHolds();
+      } catch (error) {
+        console.error('Error during cleanup or fetch:', error);
+      }
+    };
+
+    runCleanupAndFetch();
+
+    // Real-time updates
     const bookingsSubscription = supabase
       .channel('seat_bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'seat_bookings' }, () => {
