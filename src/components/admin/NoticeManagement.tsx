@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 
 type Notice = Database['public']['Tables']['notices']['Row'];
+type NoticePriority = 'low' | 'normal' | 'high';
 
 interface NoticeManagementProps {
   onBack: () => void;
@@ -28,7 +29,7 @@ export const NoticeManagement = ({ onBack, currentUserId }: NoticeManagementProp
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    priority: 'normal' as const
+    priority: 'normal' as NoticePriority
   });
   const { toast } = useToast();
 
@@ -114,7 +115,7 @@ export const NoticeManagement = ({ onBack, currentUserId }: NoticeManagementProp
     setFormData({
       title: notice.title,
       content: notice.content,
-      priority: notice.priority || 'normal'
+      priority: (notice.priority || 'normal') as NoticePriority
     });
     setIsCreateDialogOpen(true);
   };
@@ -255,7 +256,7 @@ export const NoticeManagement = ({ onBack, currentUserId }: NoticeManagementProp
                   <Label htmlFor="priority" className="text-right">
                     Priority
                   </Label>
-                  <Select value={formData.priority} onValueChange={(value: any) => setFormData({...formData, priority: value})}>
+                  <Select value={formData.priority} onValueChange={(value: NoticePriority) => setFormData({...formData, priority: value})}>
                     <SelectTrigger className="col-span-3">
                       <SelectValue />
                     </SelectTrigger>
