@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+// import { AuthForm } from '@/components/auth/AuthForm';
 import { AppStyleAuthForm } from '@/components/auth/AppStyleAuthForm';
 import { UserDashboard } from '@/components/dashboard/UserDashboard';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
@@ -15,7 +16,6 @@ const Index = () => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserRole(session.user.id);
@@ -27,15 +27,9 @@ const Index = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session);
         setUser(session?.user ?? null);
-        
         if (session?.user) {
-          // Wait a moment for the database trigger to complete
-          // This ensures profile and role are created before we try to fetch them
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 1000);
+          fetchUserRole(session.user.id);
         } else {
           setUserRole(null);
           setLoading(false);
@@ -48,39 +42,17 @@ const Index = () => {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      console.log('Fetching user role for:', userId);
-      
-      // Try to get user role with retries for newly verified users
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single();
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching user role:', error);
-        }
-
-        if (data?.role) {
-          console.log('User role found:', data.role);
-          setUserRole(data.role);
-          break;
-        } else {
-          console.log(`User role not found, attempt ${attempts + 1}/${maxAttempts}`);
-          attempts++;
-          if (attempts < maxAttempts) {
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } else {
-            // Default to 'user' if not found after retries
-            setUserRole('user');
-          }
-        }
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user role:', error);
       }
+
+      setUserRole(data?.role || 'user');
     } catch (error) {
       console.error('Error:', error);
       setUserRole('user');
@@ -102,6 +74,20 @@ const Index = () => {
 
   if (!user) {
     return (
+      // <div className="app-container min-h-screen">
+      //   <div className="container mx-auto px-4 py-8">
+      //     <div className="text-center mb-12 mt-8">
+      //       <h1 className="app-logo text-5xl md:text-6xl mb-4">
+      //         अध्ययन Library
+      //       </h1>
+      //       <p className="text-xl text-[#666666] font-light">
+      //         Your Premium Study Space
+      //       </p>
+      //     </div>
+      //     {/*<AuthForm />*/}
+      //     <AppStyleAuthForm />
+      //   </div>
+      // </div>
       <div className="app-container min-h-screen">
         <AppStyleAuthForm />
       </div>

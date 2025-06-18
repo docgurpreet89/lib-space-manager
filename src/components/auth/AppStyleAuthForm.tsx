@@ -44,12 +44,10 @@ export const AppStyleAuthForm = () => {
           description: "Welcome back!"
         });
       } else {
-        // Sign up with email verification
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: formData.fullName,
               phone: formData.mobile
@@ -59,19 +57,21 @@ export const AppStyleAuthForm = () => {
 
         if (error) throw error;
 
-        // No need to manually insert into profiles or user_roles
-        // The database trigger will handle this automatically after email verification
+        if (data.user) {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: formData.email,
+            full_name: formData.fullName,
+            phone: formData.mobile
+          });
+        }
 
         toast({
           title: "Account Created",
-          description: "Please check your email to verify your account. Your profile will be created automatically after verification.",
-          duration: 8000
+          description: "Check your email to verify your account."
         });
-
-        console.log('Signup successful, verification email sent:', data);
       }
     } catch (err: any) {
-      console.error('Authentication error:', err);
       toast({
         title: "Error",
         description: err.message,
