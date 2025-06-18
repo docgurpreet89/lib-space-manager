@@ -27,6 +27,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notices: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean | null
+          priority: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          priority?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -59,6 +92,7 @@ export type Database = {
           booking_id: string
           created_at: string | null
           from_time: string
+          membership_duration_days: number | null
           price: number | null
           seat_id: string | null
           status: string | null
@@ -72,6 +106,7 @@ export type Database = {
           booking_id?: string
           created_at?: string | null
           from_time: string
+          membership_duration_days?: number | null
           price?: number | null
           seat_id?: string | null
           status?: string | null
@@ -85,6 +120,7 @@ export type Database = {
           booking_id?: string
           created_at?: string | null
           from_time?: string
+          membership_duration_days?: number | null
           price?: number | null
           seat_id?: string | null
           status?: string | null
@@ -110,6 +146,7 @@ export type Database = {
           created_at: string | null
           new_seat_id: string | null
           old_seat_id: string | null
+          reason: string | null
           request_id: string
           status: string | null
           user_id: string
@@ -119,6 +156,7 @@ export type Database = {
           created_at?: string | null
           new_seat_id?: string | null
           old_seat_id?: string | null
+          reason?: string | null
           request_id?: string
           status?: string | null
           user_id: string
@@ -128,6 +166,7 @@ export type Database = {
           created_at?: string | null
           new_seat_id?: string | null
           old_seat_id?: string | null
+          reason?: string | null
           request_id?: string
           status?: string | null
           user_id?: string
