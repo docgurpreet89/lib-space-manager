@@ -1,174 +1,147 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 
-type SeatBooking = Database['public']['Tables']['seat_bookings']['Row'];
+interface PendingBooking {
+  id: string;
+  full_name: string;
+  email: string;
+  seat_label: string;
+  from_time: string;
+  to_time: string;
+}
 
-export const PendingBookings = () => {
-  const [bookings, setBookings] = useState<SeatBooking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+export const PendingBookingsPage = () => {
+  const [bookings, setBookings] = useState<PendingBooking[]>([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchPendingBookings();
-  }, []);
+    fetchBookings();
+  }, [search, page, perPage]);
 
-  const fetchPendingBookings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('seat_bookings')
-        .select(`
-          *,
-          seats (seat_label)
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true });
+  const fetchBookings = async () => {
+    const from = (page - 1) * perPage;
+    const to = from + perPage - 1;
 
-      if (error) throw error;
-      setBookings(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load pending bookings",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    let query = supabase
+      .from('seat_bookings')
+      .select(`
+        id,
+        user_name,
+        user_email,
+        from_time,
+        to_time,
+        seats(seat_label)
+      `, { count: 'exact' })
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (search) {
+      query = query.or(`user_name.ilike.%${search}%,user_email.ilike.%${search}%`);
     }
-  };
 
-  const handleApprove = async (bookingId: string) => {
-    try {
-      const { error } = await supabase
-        .rpc('confirm_booking', { p_booking_id: bookingId });
+    const { data, error, count } = await query;
 
-      if (error) throw error;
-
-      toast({
-        title: "Booking Approved",
-        description: "The booking has been successfully approved.",
-      });
-
-      fetchPendingBookings();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return;
     }
+
+    const formatted = (data || []).map((b: any) => ({
+      id: b.id,
+      full_name: b.user_name,
+      email: b.user_email,
+      seat_label: b.seats?.seat_label || 'N/A',
+      from_time: b.from_time,
+      to_time: b.to_time
+    }));
+
+    setBookings(formatted);
+    setTotal(count || 0);
   };
-
-  const handleCancel = async (bookingId: string) => {
-    try {
-      const { error } = await supabase
-        .rpc('cancel_booking', { p_booking_id: bookingId });
-
-      if (error) throw error;
-
-      toast({
-        title: "Booking Cancelled",
-        description: "The booking has been cancelled.",
-      });
-
-      fetchPendingBookings();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pending Bookings</CardTitle>
-        <CardDescription>
-          Review and approve or cancel pending seat bookings
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {bookings.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No pending bookings to review.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {bookings.map((booking) => (
-              <div
-                key={booking.booking_id}
-                className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      Seat {(booking as any).seats?.seat_label || booking.seat_id}
-                    </h3>
-                    <p className="text-gray-600">
-                      {formatDateTime(booking.from_time)} - {formatDateTime(booking.to_time)}
-                    </p>
-                  </div>
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    Pending
-                  </Badge>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
-                  <div>
-                    <span className="font-medium">Name:</span> {booking.user_name}
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span> {booking.user_email}
-                  </div>
-                  <div>
-                    <span className="font-medium">Phone:</span> {booking.user_phone}
-                  </div>
-                  <div>
-                    <span className="font-medium">Requested:</span> {formatDateTime(booking.created_at)}
-                  </div>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={() => handleApprove(booking.booking_id)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    onClick={() => handleCancel(booking.booking_id)}
-                    variant="destructive"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 justify-between items-center">
+        <Input
+          placeholder="Search by name or email"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="w-full md:w-64"
+        />
+        <select
+          className="app-input p-2 border rounded"
+          value={perPage}
+          onChange={(e) => {
+            setPerPage(parseInt(e.target.value));
+            setPage(1);
+          }}
+        >
+          <option value="5">5 per page</option>
+          <option value="10">10 per page</option>
+          <option value="20">20 per page</option>
+        </select>
+      </div>
+
+      <Table>
+        <thead className="bg-[#00B9F1] text-white">
+          <tr>
+            <th className="p-2 text-left">Name</th>
+            <th className="p-2 text-left">Email</th>
+            <th className="p-2 text-left">Seat</th>
+            <th className="p-2 text-left">From</th>
+            <th className="p-2 text-left">To</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bookings.length > 0 ? bookings.map((b) => (
+            <tr key={b.id} className="border-b">
+              <td className="p-2">{b.full_name}</td>
+              <td className="p-2">{b.email}</td>
+              <td className="p-2">{b.seat_label}</td>
+              <td className="p-2">{new Date(b.from_time).toLocaleString('en-IN')}</td>
+              <td className="p-2">{new Date(b.to_time).toLocaleString('en-IN')}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={5} className="p-4 text-center text-gray-500">No pending bookings found</td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+
+      <div className="flex justify-between items-center text-sm">
+        <span>
+          Showing {Math.min((page - 1) * perPage + 1, total)} - {Math.min(page * perPage, total)} of {total}
+        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page === 1}
+          >
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => (p * perPage < total ? p + 1 : p))}
+            disabled={page * perPage >= total}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
