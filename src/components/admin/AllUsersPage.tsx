@@ -4,55 +4,63 @@ import { Input } from '@/components/ui/input';
 import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 
-interface Transaction {
+interface UserProfile {
   id: string;
-  user_name: string;
-  user_email: string;
-  seat_id: string;
-  from_time: string;
-  to_time: string;
-  status: string;
-  price: number;
+  full_name: string;
+  email: string;
+  phone: string;
+  seat_label: string | null;
 }
 
-export const AdminTransactionsPage = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+export const AllUsersPage = () => {
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [search, statusFilter, page, perPage]);
+    fetchUsers();
+  }, [search, page, perPage]);
 
-  const fetchTransactions = async () => {
+  const fetchUsers = async () => {
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
 
     let query = supabase
-      .from('seat_bookings')
-      .select('id, user_name, user_email, seat_id, from_time, to_time, status, price', { count: 'exact' })
-      .range(from, to)
-      .order('created_at', { ascending: false });
+      .from('profiles')
+      .select(`
+        id,
+        full_name,
+        email,
+        phone,
+        seat_bookings:seat_bookings(seat_id, status, seats(seat_label))
+      `, { count: 'exact' })
+      .range(from, to);
 
     if (search) {
-      query = query.or(`user_name.ilike.%${search}%,user_email.ilike.%${search}%`);
-    }
-
-    if (statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
+      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('Error fetching users:', error);
       return;
     }
 
-    setTransactions(data || []);
+    const formatted = (data || []).map((u: any) => {
+      const approvedBooking = (u.seat_bookings || []).find((b: any) => b.status === 'approved');
+      return {
+        id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        phone: u.phone,
+        seat_label: approvedBooking?.seats?.seat_label || null
+      };
+    });
+
+    setUsers(formatted);
     setTotal(count || 0);
   };
 
@@ -68,19 +76,6 @@ export const AdminTransactionsPage = () => {
           }}
           className="w-full md:w-64"
         />
-        <select
-          className="app-input p-2 border rounded"
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
         <select
           className="app-input p-2 border rounded"
           value={perPage}
@@ -100,27 +95,21 @@ export const AdminTransactionsPage = () => {
           <tr>
             <th className="p-2 text-left">Name</th>
             <th className="p-2 text-left">Email</th>
-            <th className="p-2 text-left">Seat</th>
-            <th className="p-2 text-left">Duration</th>
-            <th className="p-2 text-left">Price</th>
-            <th className="p-2 text-left">Status</th>
+            <th className="p-2 text-left">Phone</th>
+            <th className="p-2 text-left">Approved Seat</th>
           </tr>
         </thead>
         <tbody>
-          {transactions.length > 0 ? transactions.map((t) => (
-            <tr key={t.id} className="border-b">
-              <td className="p-2">{t.user_name}</td>
-              <td className="p-2">{t.user_email}</td>
-              <td className="p-2">{t.seat_id}</td>
-              <td className="p-2">
-                {t.from_time?.split('T')[0]} → {t.to_time?.split('T')[0]}
-              </td>
-              <td className="p-2">₹ {t.price}</td>
-              <td className="p-2 capitalize">{t.status}</td>
+          {users.length > 0 ? users.map((u) => (
+            <tr key={u.id} className="border-b">
+              <td className="p-2">{u.full_name}</td>
+              <td className="p-2">{u.email}</td>
+              <td className="p-2">{u.phone}</td>
+              <td className="p-2">{u.seat_label || 'N/A'}</td>
             </tr>
           )) : (
             <tr>
-              <td colSpan={6} className="p-4 text-center text-gray-500">No transactions found</td>
+              <td colSpan={4} className="p-4 text-center text-gray-500">No users found</td>
             </tr>
           )}
         </tbody>
