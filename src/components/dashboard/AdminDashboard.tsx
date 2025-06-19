@@ -1,113 +1,139 @@
-import { useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { PendingBookings } from '@/components/admin/PendingBookings';
-import { SeatChangeRequests } from '@/components/admin/SeatChangeRequests';
-import { AllUsersPage } from '@/components/admin/AllUsersPage';
-import { AllTransactionsPage } from '@/components/admin/AllTransactionsPage';
-import { NoticeManagement } from '@/components/admin/NoticeManagement';
-import { SoonExpiringMemberships } from '@/components/admin/SoonExpiringMemberships';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Calendar, Users, FileText, Bell, Clock, LayoutDashboard } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
-interface AdminDashboardProps {
-  user: User;
-}
+export const AdminDashboard = () => {
+  const [pendingCount, setPendingCount] = useState(0);
+  const [seatChangeCount, setSeatChangeCount] = useState(0);
+  const [expiringCount, setExpiringCount] = useState(0);
+  const [seatStats, setSeatStats] = useState({ total: 0, booked: 0, held: 0, available: 0 });
 
-export const AdminDashboard = ({ user }: AdminDashboardProps) => {
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [activeTab, setActiveTab] = useState('pendingBookings');
+  const navigate = useNavigate();
 
-  const navItems = [
-    { key: 'pendingBookings', label: 'Pending Bookings', icon: <Calendar size={18} />, badge: 3 },
-    { key: 'seatChanges', label: 'Seat Change Requests', icon: <Users size={18} />, badge: 1 },
-    { key: 'users', label: 'All Users', icon: <Users size={18} /> },
-    { key: 'transactions', label: 'All Transactions', icon: <FileText size={18} /> },
-    { key: 'notices', label: 'Notice Management', icon: <Bell size={18} /> },
-    { key: 'expiring', label: 'Expiring Memberships', icon: <Clock size={18} /> },
-  ];
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'pendingBookings':
-        return <PendingBookings />;
-      case 'seatChanges':
-        return <SeatChangeRequests />;
-      case 'users':
-        return <AllUsersPage />;
-      case 'transactions':
-        return <AllTransactionsPage />;
-      case 'notices':
-        return <NoticeManagement />;
-      case 'expiring':
-        return <SoonExpiringMemberships />;
-      default:
-        return <PendingBookings />;
+  const fetchStats = async () => {
+    try {
+      const { count: pending } = await supabase
+        .from('seat_bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      const { count: changes } = await supabase
+        .from('seat_change_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      const { count: expiring } = await supabase
+        .rpc('get_soon_expiring_memberships', {}, { count: 'exact', head: true });
+
+      const { data: seats } = await supabase.from('seats').select('seat_id');
+      const { data: booked } = await supabase
+        .from('seat_bookings')
+        .select('seat_id')
+        .eq('status', 'approved');
+      const { data: held } = await supabase
+        .from('seat_holds')
+        .select('seat_id')
+        .gte('lock_expiry', new Date().toISOString());
+
+      setPendingCount(pending || 0);
+      setSeatChangeCount(changes || 0);
+      setExpiringCount(expiring || 0);
+      setSeatStats({
+        total: seats?.length || 0,
+        booked: booked?.length || 0,
+        held: held?.length || 0,
+        available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
+      });
+    } catch (err) {
+      console.error('Error fetching stats', err);
     }
   };
 
+  const cardStyle = "cursor-pointer p-4 rounded-lg shadow-sm bg-white hover:bg-blue-50 border border-blue-100 transition";
+
   return (
-    <div className="flex min-h-screen bg-[#f5f7fa]">
-      {/* Sidebar */}
-      <div className={`
-        fixed top-0 left-0 h-full w-64 bg-white border-r shadow-md z-50 transform transition-transform duration-300 ease-in-out
-        ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:z-auto
-      `}>
-        <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-bold text-[#002e6e] flex items-center gap-2">
-            <LayoutDashboard size={20} /> Admin
-          </h2>
-          <Button 
-            onClick={() => setShowSidebar(false)} 
-            className="lg:hidden p-2"
-            variant="ghost"
-          >
-            <X size={20} />
-          </Button>
-        </div>
-        <nav className="p-2">
-          {navItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => {
-                setActiveTab(item.key);
-                setShowSidebar(false);
-              }}
-              className={`w-full flex items-center justify-between p-2 rounded-lg text-sm font-medium transition-colors
-                ${activeTab === item.key 
-                  ? 'bg-[#00B9F1] text-white' 
-                  : 'text-[#555] hover:bg-[#e6f7ff] hover:text-[#00B9F1]'
-                }`}
-              title={item.label}
-            >
-              <span className="flex items-center gap-2">
-                {item.icon}
-                {item.label}
-              </span>
-              {item.badge && (
-                <span className="bg-red-500 text-white text-xs rounded-full px-2">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+    <div className="p-4 space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Card className={cardStyle} onClick={() => navigate('/admin/pending-bookings')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Pending Bookings</div>
+            <div className="text-2xl font-bold text-blue-600">{pendingCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/seat-changes')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Seat Change Requests</div>
+            <div className="text-2xl font-bold text-blue-600">{seatChangeCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/users')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">All Users</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/transactions')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">All Transactions</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/notices')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Notice Management</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle + " bg-blue-600 text-white hover:bg-blue-700"} onClick={() => navigate('/admin/expiring-memberships')}>
+          <CardContent>
+            <div className="text-sm">Expiring Memberships</div>
+            <div className="text-2xl font-bold">{expiringCount}</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-6 lg:ml-64">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-[#002e6e]">Admin Dashboard</h1>
-          <Button 
-            onClick={() => setShowSidebar(true)} 
-            className="lg:hidden paytm-button-secondary"
-          >
-            <Menu size={20} />
-          </Button>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          {renderContent()}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Total Seats</div>
+            <div className="text-xl font-bold text-blue-600">{seatStats.total}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Booked Seats</div>
+            <div className="text-xl font-bold text-red-500">{seatStats.booked}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">On Hold</div>
+            <div className="text-xl font-bold text-yellow-500">{seatStats.held}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Available Seats</div>
+            <div className="text-xl font-bold text-green-500">{seatStats.available}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card className={cardStyle} onClick={() => navigate('/admin/transactions?status=pending')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Transactions to Approve</div>
+            <div className="text-lg font-bold text-blue-600">View Details</div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
