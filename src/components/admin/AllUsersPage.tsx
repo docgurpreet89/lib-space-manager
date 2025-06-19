@@ -1,261 +1,139 @@
-
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Search } from 'lucide-react';
 
-interface UserWithBooking {
+interface UserProfile {
   id: string;
   full_name: string;
   email: string;
   phone: string;
-  created_at: string;
-  current_booking?: {
-    seat_label: string;
-    from_time: string;
-    to_time: string;
-    status: string;
-  };
+  approved_seat: string | null;
+  duration: string | null;
 }
 
-interface AllUsersPageProps {
-  onBack: () => void;
-}
-
-export const AllUsersPage = ({ onBack }: AllUsersPageProps) => {
-  const [users, setUsers] = useState<UserWithBooking[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserWithBooking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage, setRecordsPerPage] = useState(10);
-  const { toast } = useToast();
+export const AllUsersPage = () => {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchTerm]);
+  }, [search, page, perPage]);
 
   const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const from = (page - 1) * perPage;
+    const to = from + perPage - 1;
 
-      if (profilesError) throw profilesError;
+    const { data, error, count } = await supabase
+      .from('profiles')
+      .select(`
+        id, full_name, email, phone,
+        seat_bookings(seat_id, from_time, to_time)
+      `, { count: 'exact' })
+      .ilike('full_name', `%${search}%`)
+      .range(from, to);
 
-      // For each user, get their current active booking
-      const usersWithBookings = await Promise.all(
-        (profiles || []).map(async (profile) => {
-          const { data: booking } = await supabase
-            .from('seat_bookings')
-            .select(`
-              from_time,
-              to_time,
-              status,
-              seats (seat_label)
-            `)
-            .eq('user_id', profile.id)
-            .eq('status', 'approved')
-            .gte('to_time', new Date().toISOString())
-            .single();
-
-          return {
-            ...profile,
-            current_booking: booking ? {
-              seat_label: (booking as any).seats?.seat_label || 'N/A',
-              from_time: booking.from_time,
-              to_time: booking.to_time,
-              status: booking.status
-            } : undefined
-          };
-        })
-      );
-
-      setUsers(usersWithBookings);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterUsers = () => {
-    let filtered = users;
-
-    if (searchTerm) {
-      filtered = users.filter(user =>
-        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone?.includes(searchTerm) ||
-        user.current_booking?.seat_label?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (error) {
+      console.error('Error fetching users:', error);
+      return;
     }
 
-    setFilteredUsers(filtered);
-    setCurrentPage(1);
+    const mapped = (data || []).map((u) => {
+      const approved = u.seat_bookings?.find((b) => b.from_time && b.to_time);
+      return {
+        id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        phone: u.phone,
+        approved_seat: approved?.seat_id || 'N/A',
+        duration: approved ? `${approved.from_time.split('T')[0]} → ${approved.to_time.split('T')[0]}` : 'N/A'
+      };
+    });
+
+    setUsers(mapped);
+    setTotal(count || 0);
   };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN');
-  };
-
-  const getCurrentPageData = () => {
-    const startIndex = (currentPage - 1) * recordsPerPage;
-    const endIndex = startIndex + recordsPerPage;
-    return filteredUsers.slice(startIndex, endIndex);
-  };
-
-  const totalPages = Math.ceil(filteredUsers.length / recordsPerPage);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Button onClick={onBack} variant="outline" size="sm">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-bold">All Registered Users</h1>
+      <div className="flex flex-wrap gap-2 justify-between items-center">
+        <Input
+          placeholder="Search by name or email"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="w-full md:w-64"
+        />
+        <select
+          className="app-input p-2 border rounded"
+          value={perPage}
+          onChange={(e) => {
+            setPerPage(parseInt(e.target.value));
+            setPage(1);
+          }}
+        >
+          <option value="5">5 per page</option>
+          <option value="10">10 per page</option>
+          <option value="20">20 per page</option>
+        </select>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>
-            Complete list of all registered users with their current bookings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-[300px]"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Records per page:</span>
-              <Select value={recordsPerPage.toString()} onValueChange={(value) => setRecordsPerPage(Number(value))}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <Table>
+        <thead className="bg-[#00B9F1] text-white">
+          <tr>
+            <th className="p-2 text-left">Name</th>
+            <th className="p-2 text-left">Email</th>
+            <th className="p-2 text-left">Phone</th>
+            <th className="p-2 text-left">Approved Seat</th>
+            <th className="p-2 text-left">Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length > 0 ? users.map((u) => (
+            <tr key={u.id} className="border-b">
+              <td className="p-2">{u.full_name}</td>
+              <td className="p-2">{u.email}</td>
+              <td className="p-2">{u.phone}</td>
+              <td className="p-2">{u.approved_seat}</td>
+              <td className="p-2">{u.duration}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={5} className="p-4 text-center text-gray-500">No users found</td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Current Seat</TableHead>
-                  <TableHead>Booking Valid Till</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {getCurrentPageData().map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">
-                      {user.full_name || 'N/A'}
-                    </TableCell>
-                    <TableCell>{user.email || 'N/A'}</TableCell>
-                    <TableCell>{user.phone || 'N/A'}</TableCell>
-                    <TableCell>{formatDateTime(user.created_at)}</TableCell>
-                    <TableCell>
-                      {user.current_booking ? (
-                        <span className="font-semibold text-blue-600">
-                          {user.current_booking.seat_label}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">No active booking</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {user.current_booking ? (
-                        formatDateTime(user.current_booking.to_time)
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-600">
-              Showing {Math.min((currentPage - 1) * recordsPerPage + 1, filteredUsers.length)} to{' '}
-              {Math.min(currentPage * recordsPerPage, filteredUsers.length)} of {filteredUsers.length} results
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex justify-between items-center text-sm">
+        <span>
+          Showing {Math.min((page - 1) * perPage + 1, total)} - {Math.min(page * perPage, total)} of {total}
+        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page === 1}
+          >
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => (p * perPage < total ? p + 1 : p))}
+            disabled={page * perPage >= total}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
