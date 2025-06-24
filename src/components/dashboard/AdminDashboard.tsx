@@ -6,39 +6,87 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  const [dummyBookings, setDummyBookings] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingBooking, setEditingBooking] = useState(null);
   const itemsPerPage = 5;
 
   const [stats, setStats] = useState({
-    pending: 2,
-    seatChanges: 1,
-    expiring: 3,
-    totalSeats: 50,
-    booked: 20,
-    held: 5,
-    available: 25,
-    biometric: 10
+    pending: 0,
+    seatChanges: 0,
+    expiring: 0,
+    totalSeats: 0,
+    booked: 0,
+    held: 0,
+    available: 0,
+    biometric: 0
   });
 
   useEffect(() => {
-    loadDummyBookings();
+    loadBookings();
+    loadStats();
   }, []);
 
-  const loadDummyBookings = () => {
-    setDummyBookings([
-      { id: 1, name: 'John Doe', amount: 500, date: '2025-06-23', validity: '30 days', status: 'pending' },
-      { id: 2, name: 'Jane Smith', amount: 750, date: '2025-06-22', validity: '60 days', status: 'pending' }
-    ]);
+  const loadBookings = async () => {
+    const { data, error } = await supabase
+      .from('seat_bookings')
+      .select('*');
+    if (!error) {
+      setBookings(data);
+    }
+  };
+
+  const loadStats = async () => {
+    const pending = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    const seatChanges = await supabase
+      .from('seat_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    const seats = await supabase
+      .from('seats')
+      .select('seat_id');
+
+    const booked = await supabase
+      .from('seat_bookings')
+      .select('seat_id')
+      .eq('status', 'approved');
+
+    const held = await supabase
+      .from('seat_holds')
+      .select('seat_id')
+      .gte('lock_expiry', new Date().toISOString());
+
+    const biometric = await supabase
+      .from('biometric_cards')
+      .select('*', { count: 'exact', head: true });
+
+    setStats({
+      pending: pending.count || 0,
+      seatChanges: seatChanges.count || 0,
+      expiring: 0, // you can add an RPC or logic for expiring
+      totalSeats: seats.data?.length || 0,
+      booked: booked.data?.length || 0,
+      held: held.data?.length || 0,
+      available: (seats.data?.length || 0) - (booked.data?.length || 0) - (held.data?.length || 0),
+      biometric: biometric.count || 0
+    });
   };
 
   const handleApproveClick = (booking) => setEditingBooking({ ...booking, biometricCard: '' });
 
   const handleApproveSubmit = async () => {
     const updated = { ...editingBooking, status: 'approved' };
-    setDummyBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+    await supabase
+      .from('seat_bookings')
+      .update({ status: 'approved' })
+      .eq('id', updated.id);
+
     await supabase.from('approved_transactions').insert({
       booking_id: updated.id,
       name: updated.name,
@@ -47,14 +95,23 @@ export const AdminDashboard = () => {
       validity: updated.validity,
       biometric_card: updated.biometricCard
     });
+
     setEditingBooking(null);
+    loadBookings();
+    loadStats();
   };
 
-  const handleReject = (id) => {
-    setDummyBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'rejected' } : b));
+  const handleReject = async (id) => {
+    await supabase
+      .from('seat_bookings')
+      .update({ status: 'rejected' })
+      .eq('id', id);
+
+    loadBookings();
+    loadStats();
   };
 
-  const filteredBookings = dummyBookings.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredBookings = bookings.filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
@@ -136,4 +193,3 @@ export const AdminDashboard = () => {
     </div>
   );
 };
- 
