@@ -161,7 +161,7 @@ export const AdminDashboard = () => {
 
         {/* Pending Actions Queue */}
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
+          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:14</div>
           {queue.length === 0 ? (
             <div className="text-gray-500">No pending actions. All caught up!</div>
           ) : (
