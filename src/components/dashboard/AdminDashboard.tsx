@@ -88,7 +88,9 @@ export const AdminDashboard = () => {
           return {
             id: b.id,
             type: 'booking',
-            label: `Seat ${seatNum} Booking Request`,
+            label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
+            date: b.from_time || b.created_at
+          };
             date: b.from_time || b.created_at
           };
         }),
@@ -161,7 +163,7 @@ export const AdminDashboard = () => {
 
         {/* Pending Actions Queue */}
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:14</div>
+          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:17</div>
           {queue.length === 0 ? (
             <div className="text-gray-500">No pending actions. All caught up!</div>
           ) : (
