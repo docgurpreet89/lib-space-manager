@@ -38,7 +38,10 @@ export const AdminDashboard = () => {
   };
 
   const loadSeatChangeRequests = async () => {
-    const { data, error } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
+    const { data, error } = await supabase
+      .from('seat_change_requests')
+      .select('*')
+      .eq('status', 'pending');
     if (!error) setSeatChangeRequests(data || []);
   };
 
@@ -48,21 +51,34 @@ export const AdminDashboard = () => {
   };
 
   const loadSeatMap = async () => {
-    // Assumes seats table has columns seat_id and seat_number
-    const { data, error } = await supabase.from('seats').select('seat_id, seat_label');
+    // Fetch seat_id and actual seat label
+    const { data, error } = await supabase
+      .from('seats')
+      .select('seat_id, seat_label');
     if (!error && data) {
-      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_number }), {});
+      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {});
       setSeatMap(map);
     }
   };
 
   const loadStats = async () => {
-    const { count: pending } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-    const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { count: pending } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { count: seatChanges } = await supabase
+      .from('seat_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
     const { data: seats } = await supabase.from('seats').select('seat_id');
-    const { count: booked } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'approved');
+    const { count: booked } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'approved');
     const { data: held } = await supabase.from('seat_holds').select('seat_id');
-    const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
+    const { count: biometric } = await supabase
+      .from('biometric_cards')
+      .select('*', { count: 'exact', head: true });
 
     setStats({
       pending: pending || 0,
@@ -80,7 +96,7 @@ export const AdminDashboard = () => {
   const [queue, setQueue] = useState([]);
   useEffect(() => {
     const merged = [
-            // Pending Booking Requests with seat number
+      // Pending Booking Requests with seat label
       ...bookings
         .filter(b => b.status === 'pending')
         .map(b => {
@@ -105,7 +121,7 @@ export const AdminDashboard = () => {
         type: 'expiry',
         label: `Expiring Membership: ${m.name}`,
         date: m.valid_till
-      })),
+      }))
     ];
     setQueue(merged);
   }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
@@ -161,7 +177,7 @@ export const AdminDashboard = () => {
 
         {/* Pending Actions Queue */}
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:14</div>
+          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:21</div>
           {queue.length === 0 ? (
             <div className="text-gray-500">No pending actions. All caught up!</div>
           ) : (
