@@ -49,7 +49,7 @@ export const AdminDashboard = () => {
 
   const loadSeatMap = async () => {
     // Assumes seats table has columns seat_id and seat_number
-    const { data, error } = await supabase.from('seats').select('seat_id, seat_number');
+    const { data, error } = await supabase.from('seats').select('seat_id, seat_label');
     if (!error && data) {
       const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_number }), {});
       setSeatMap(map);
