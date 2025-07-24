@@ -1,334 +1,137 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 export const AdminDashboard = () => {
-  // State hooks
-  const [pendingBookings, setPendingBookings] = useState([]);
-  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
-  const [expiringMembers, setExpiringMembers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-  const [seatLockDuration, setSeatLockDuration] = useState(10);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [seatChangeCount, setSeatChangeCount] = useState(0);
+  const [expiringCount, setExpiringCount] = useState(0);
+  const [seatStats, setSeatStats] = useState({ total: 0, booked: 0, held: 0, available: 0 });
 
-  const [stats, setStats] = useState({
-    pending: 0,
-    seatChanges: 0,
-    expiring: 0,
-    totalSeats: 0,
-    booked: 0,
-    held: 0,
-    available: 0,
-    biometric: 0
-  });
+  const navigate = useNavigate();
 
-  // === LOADERS ===
   useEffect(() => {
-    loadSettings();
-    loadStats();
-    loadSeatChangeRequests();
-    loadExpiringMembers();
-    loadPendingBookings();
-    const interval = setInterval(cleanupExpiredHolds, 60000);
-    return () => clearInterval(interval);
-  }, [seatLockDuration]);
+    fetchStats();
+  }, []);
 
-  const loadSettings = async () => {
-    const { data, error } = await supabase.from('library_settings').select('seat_lock_duration_minutes').single();
-    if (!error && data?.seat_lock_duration_minutes) {
-      setSeatLockDuration(data.seat_lock_duration_minutes);
-    }
-  };
-
-  const loadStats = async () => {
+  const fetchStats = async () => {
     try {
-      const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-      const { data: seats } = await supabase.from('seats').select('id');
-      const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
-      const { data: held } = await supabase.from('seat_holds').select('id');
-      const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
-      const { data: pendingHolds } = await supabase.from('seat_holds').select('*');
+      const { count: pending } = await supabase
+        .from('seat_bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
 
-      setStats({
-        pending: pendingHolds?.length || 0,
-        seatChanges: seatChanges || 0,
-        expiring: 0,
-        totalSeats: seats?.length || 0,
+      const { count: changes } = await supabase
+        .from('seat_change_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      const { count: expiring } = await supabase
+        .rpc('get_soon_expiring_memberships', {}, { count: 'exact', head: true });
+
+      const { data: seats } = await supabase.from('seats').select('seat_id');
+      const { data: booked } = await supabase
+        .from('seat_bookings')
+        .select('seat_id')
+        .eq('status', 'approved');
+      const { data: held } = await supabase
+        .from('seat_holds')
+        .select('seat_id')
+        .gte('lock_expiry', new Date().toISOString());
+
+      setPendingCount(pending || 0);
+      setSeatChangeCount(changes || 0);
+      setExpiringCount(expiring || 0);
+      setSeatStats({
+        total: seats?.length || 0,
         booked: booked?.length || 0,
         held: held?.length || 0,
         available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
-        biometric: biometric || 0
       });
-    } catch (error) {
-      console.error('Failed to load stats:', error.message);
+    } catch (err) {
+      console.error('Error fetching stats', err);
     }
   };
 
-  const loadPendingBookings = async () => {
-    try {
-      const { data, error } = await supabase.from('seat_holds').select('id, name, amount, status, created_at');
-      if (error) throw error;
-      const now = new Date();
-      const filtered = (data || []).filter(hold => {
-        const createdAt = new Date(hold.created_at);
-        const diffMinutes = (now - createdAt) / (1000 * 60);
-        return diffMinutes <= seatLockDuration;
-      });
-      setPendingBookings(filtered);
-    } catch (error) {
-      console.error('Failed to load pending bookings:', error.message);
-    }
-  };
+  const cardStyle = "cursor-pointer p-4 rounded-lg shadow-sm bg-white hover:bg-blue-50 border border-blue-100 transition";
 
-  const loadSeatChangeRequests = async () => {
-    try {
-      const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
-      setSeatChangeRequests(data || []);
-    } catch (error) {
-      console.error('Failed to load seat change requests:', error.message);
-    }
-  };
-
-  const loadExpiringMembers = async () => {
-    try {
-      const { data } = await supabase.rpc('get_soon_expiring_memberships');
-      setExpiringMembers(data || []);
-    } catch (error) {
-      console.error('Failed to load expiring members:', error.message);
-    }
-  };
-
-  // === HANDLERS ===
-  const handleApprove = async (bookingId) => {
-    try {
-      const { data: holdData, error: holdError } = await supabase.from('seat_holds').select('*').eq('id', bookingId).single();
-      if (holdError) throw holdError;
-      await supabase.from('seat_bookings').update({ status: 'approved' }).eq('seat_hold_id', bookingId);
-      await supabase.from('seat_holds').delete().eq('id', bookingId);
-      await loadPendingBookings();
-      await loadStats();
-    } catch (error) {
-      console.error('Failed to approve booking:', error.message);
-    }
-  };
-
-  // Implement your logic for review and renew
-  const handleSeatChangeReview = async (id) => {
-    await supabase.from('seat_change_requests').update({ status: 'reviewed' }).eq('id', id);
-    await loadSeatChangeRequests();
-  };
-
-  const handleMembershipRenew = async (id) => {
-    await supabase.from('memberships').update({ status: 'renewed' }).eq('id', id);
-    await loadExpiringMembers();
-  };
-
-  // --- NEW ROBUST CLEANUP FUNCTION ---
-  const cleanupExpiredHolds = async () => {
-    try {
-      const { data } = await supabase.from('seat_holds').select('*');
-      const now = new Date();
-      for (const hold of data || []) {
-        const createdAt = new Date(hold.created_at);
-        const diffMinutes = (now - createdAt) / (1000 * 60);
-        if (diffMinutes > seatLockDuration) {
-          // Check if seat_booking exists
-          const { data: bookingData } = await supabase
-            .from('seat_bookings')
-            .select('*')
-            .eq('seat_hold_id', hold.id)
-            .maybeSingle();
-
-          if (bookingData) {
-            // Update to timeout if still pending
-            if (bookingData.status === 'pending') {
-              await supabase
-                .from('seat_bookings')
-                .update({ status: 'timeout' })
-                .eq('id', bookingData.id);
-            }
-          } else {
-            // Insert timeout booking
-            await supabase.from('seat_bookings').insert({
-              name: hold.name,
-              amount: hold.amount,
-              seat_hold_id: hold.id,
-              status: 'timeout'
-            });
-          }
-
-          // Remove the hold
-          await supabase.from('seat_holds').delete().eq('id', hold.id);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to cleanup expired holds:', error.message);
-    }
-  };
-
-  const filteredBookings = pendingBookings.filter(b => (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
-  const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  // --- Notification Queue ---
-  const [queue, setQueue] = useState([]);
-  useEffect(() => {
-    const merged = [
-      ...pendingBookings.map(b => ({ ...b, type: 'booking' })),
-      ...seatChangeRequests.map(c => ({ ...c, type: 'seat_change' })),
-      ...expiringMembers.map(m => ({ ...m, type: 'expiry' })),
-    ];
-    setQueue(merged);
-  }, [pendingBookings, seatChangeRequests, expiringMembers]);
-
-  const handleQueueRemove = id => setQueue(q => q.filter(item => item.id !== id));
-
-  // --- UI ---
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* SIDEBAR */}
-      <div className="w-64 bg-blue-800 text-white p-4 space-y-2">
-        <div className="text-2xl font-bold mb-4">Admin</div>
-        {[
-          { label: 'Pending Bookings', icon: ClipboardList },
-          { label: 'Seat Change Requests', icon: Repeat },
-          { label: 'All Users', icon: Users },
-          { label: 'All Transactions', icon: FileText },
-          { label: 'Notice Management', icon: Bell },
-          { label: 'Expiring Memberships', icon: FileText },
-          { label: 'Biometric Enrollments', icon: IdCard }
-        ].map(item => (
-          <div key={item.label} className="flex items-center p-2 rounded hover:bg-blue-700 cursor-pointer">
-            <item.icon className="w-4 h-4 mr-2" /> {item.label}
-          </div>
-        ))}
+    <div className="p-4 space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Card className={cardStyle} onClick={() => navigate('/admin/pending-bookings')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Pending Bookings</div>
+            <div className="text-2xl font-bold text-blue-600">{pendingCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/seat-changes')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Seat Change Requests</div>
+            <div className="text-2xl font-bold text-blue-600">{seatChangeCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/users')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">All Users</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/transactions')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">All Transactions</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle} onClick={() => navigate('/admin/notices')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Notice Management</div>
+          </CardContent>
+        </Card>
+
+        <Card className={cardStyle + " bg-blue-600 text-white hover:bg-blue-700"} onClick={() => navigate('/admin/expiring-memberships')}>
+          <CardContent>
+            <div className="text-sm">Expiring Memberships</div>
+            <div className="text-2xl font-bold">{expiringCount}</div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="flex-1 p-6 space-y-6">
-        {/* --- STATISTICS CARDS --- */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
-          <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
-          <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
-          <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
-          <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
-          <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
-          <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
-          <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
-        </div>
-
-        {/* --- PENDING ACTIONS QUEUE --- */}
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="font-bold mb-2 text-lg">🔔 Pending Actions</div>
-          {queue.length === 0 && (
-            <div className="text-gray-500">No pending actions. All caught up!</div>
-          )}
-          {queue.map(item => (
-            <div
-              key={`${item.type}-${item.id}`}
-              className="flex justify-between items-center p-2 border-b last:border-none"
-            >
-              <div>
-                {item.type === 'booking' && (
-                  <>
-                    <span className="font-semibold text-blue-700">Seat Booking:</span>{' '}
-                    {item.name} — ₹{item.amount}
-                  </>
-                )}
-                {item.type === 'seat_change' && (
-                  <>
-                    <span className="font-semibold text-yellow-700">Seat Change:</span>{' '}
-                    {item.user_name} → {item.requested_seat}
-                  </>
-                )}
-                {item.type === 'expiry' && (
-                  <>
-                    <span className="font-semibold text-red-700">Expiring Membership:</span>{' '}
-                    {item.name} (valid till {item.valid_till})
-                  </>
-                )}
-              </div>
-              <div className="space-x-2">
-                {item.type === 'booking' && (
-                  <Button
-                    size="sm"
-                    className="bg-green-500 text-white hover:bg-green-600"
-                    onClick={async () => {
-                      await handleApprove(item.id);
-                      handleQueueRemove(item.id);
-                    }}
-                  >
-                    Approve
-                  </Button>
-                )}
-                {item.type === 'seat_change' && (
-                  <Button
-                    size="sm"
-                    className="bg-blue-500 text-white hover:bg-blue-600"
-                    onClick={async () => {
-                      await handleSeatChangeReview(item.id);
-                      handleQueueRemove(item.id);
-                    }}
-                  >
-                    Review
-                  </Button>
-                )}
-                {item.type === 'expiry' && (
-                  <Button
-                    size="sm"
-                    className="bg-purple-500 text-white hover:bg-purple-600"
-                    onClick={async () => {
-                      await handleMembershipRenew(item.id);
-                      handleQueueRemove(item.id);
-                    }}
-                  >
-                    Renew
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* --- BOOKING MANAGEMENT TABLE --- */}
-        <Card className="p-6 shadow bg-white">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+        <Card className={cardStyle}>
           <CardContent>
-            <div className="flex justify-between mb-2">
-              <div className="font-bold">Booking Management</div>
-              <Input placeholder="Search by name" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-64" />
-            </div>
-            <table className="min-w-full bg-white rounded">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="p-2 text-left text-xs font-bold">S/N</th>
-                  <th className="p-2 text-left text-xs font-bold">Name</th>
-                  <th className="p-2 text-left text-xs font-bold">Amount</th>
-                  <th className="p-2 text-left text-xs font-bold">Created At</th>
-                  <th className="p-2 text-left text-xs font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBookings.map((b, index) => (
-                  <tr key={b.id} className="border-b">
-                    <td className="p-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td className="p-2 text-xs">{b.name}</td>
-                    <td className="p-2 text-xs">₹{b.amount}</td>
-                    <td className="p-2 text-xs">{new Date(b.created_at).toLocaleString()}</td>
-                    <td className="p-2 text-xs space-x-1">
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleApprove(b.id)}>Approve</Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex justify-between mt-2">
-              <Button size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs text-gray-500">Page {currentPage}</span>
-              <Button size="sm" disabled={currentPage * itemsPerPage >= filteredBookings.length} onClick={() => setCurrentPage(p => p + 1)}>Next</Button>
-            </div>
+            <div className="text-sm text-gray-600">Total Seats</div>
+            <div className="text-xl font-bold text-blue-600">{seatStats.total}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Booked Seats</div>
+            <div className="text-xl font-bold text-red-500">{seatStats.booked}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">On Hold</div>
+            <div className="text-xl font-bold text-yellow-500">{seatStats.held}</div>
+          </CardContent>
+        </Card>
+        <Card className={cardStyle}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Available Seats</div>
+            <div className="text-xl font-bold text-green-500">{seatStats.available}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card className={cardStyle} onClick={() => navigate('/admin/transactions?status=pending')}>
+          <CardContent>
+            <div className="text-sm text-gray-600">Transactions to Approve</div>
+            <div className="text-lg font-bold text-blue-600">View Details</div>
           </CardContent>
         </Card>
       </div>
