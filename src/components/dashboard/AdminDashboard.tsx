@@ -115,7 +115,7 @@ export const AdminDashboard = () => {
     ];
     setQueue(merged);
   }, [pendingBookings, seatChangeRequests, expiringMembers]);
-  console.log(supabase.auth.user().id);
+
   const handleQueueRemove = id => setQueue(q => q.filter(item => item.id !== id));
 
   // --- PAGINATION ---
