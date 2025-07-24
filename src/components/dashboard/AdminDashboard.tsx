@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
+  // State hooks
   const [pendingBookings, setPendingBookings] = useState([]);
   const [seatChangeRequests, setSeatChangeRequests] = useState([]);
   const [expiringMembers, setExpiringMembers] = useState([]);
@@ -25,6 +26,7 @@ export const AdminDashboard = () => {
     biometric: 0
   });
 
+  // === LOADERS ===
   useEffect(() => {
     loadSettings();
     loadStats();
@@ -100,21 +102,29 @@ export const AdminDashboard = () => {
     }
   };
 
+  // === HANDLERS ===
   const handleApprove = async (bookingId) => {
     try {
       const { data: holdData, error: holdError } = await supabase.from('seat_holds').select('*').eq('id', bookingId).single();
       if (holdError) throw holdError;
-
-      await supabase.from('seat_bookings').update({
-        status: 'approved'
-      }).eq('seat_hold_id', bookingId);
-
+      await supabase.from('seat_bookings').update({ status: 'approved' }).eq('seat_hold_id', bookingId);
       await supabase.from('seat_holds').delete().eq('id', bookingId);
       await loadPendingBookings();
       await loadStats();
     } catch (error) {
       console.error('Failed to approve booking:', error.message);
     }
+  };
+
+  // Implement your logic for review and renew
+  const handleSeatChangeReview = async (id) => {
+    await supabase.from('seat_change_requests').update({ status: 'reviewed' }).eq('id', id);
+    await loadSeatChangeRequests();
+  };
+
+  const handleMembershipRenew = async (id) => {
+    await supabase.from('memberships').update({ status: 'renewed' }).eq('id', id);
+    await loadExpiringMembers();
   };
 
   const cleanupExpiredHolds = async () => {
@@ -128,7 +138,6 @@ export const AdminDashboard = () => {
           await supabase.from('seat_bookings').update({
             status: 'timeout'
           }).eq('seat_hold_id', hold.id);
-
           await supabase.from('seat_holds').delete().eq('id', hold.id);
         }
       }
@@ -140,8 +149,23 @@ export const AdminDashboard = () => {
   const filteredBookings = pendingBookings.filter(b => (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // --- Notification Queue ---
+  const [queue, setQueue] = useState([]);
+  useEffect(() => {
+    const merged = [
+      ...pendingBookings.map(b => ({ ...b, type: 'booking' })),
+      ...seatChangeRequests.map(c => ({ ...c, type: 'seat_change' })),
+      ...expiringMembers.map(m => ({ ...m, type: 'expiry' })),
+    ];
+    setQueue(merged);
+  }, [pendingBookings, seatChangeRequests, expiringMembers]);
+
+  const handleQueueRemove = id => setQueue(q => q.filter(item => item.id !== id));
+
+  // --- UI ---
   return (
     <div className="flex min-h-screen bg-gray-100">
+      {/* SIDEBAR */}
       <div className="w-64 bg-blue-800 text-white p-4 space-y-2">
         <div className="text-2xl font-bold mb-4">Admin</div>
         {[
@@ -158,7 +182,9 @@ export const AdminDashboard = () => {
           </div>
         ))}
       </div>
+
       <div className="flex-1 p-6 space-y-6">
+        {/* --- STATISTICS CARDS --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
           <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
@@ -170,6 +196,80 @@ export const AdminDashboard = () => {
           <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
         </div>
 
+        {/* --- PENDING ACTIONS QUEUE --- */}
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="font-bold mb-2 text-lg">🔔 Pending Actions</div>
+          {queue.length === 0 && (
+            <div className="text-gray-500">No pending actions. All caught up!</div>
+          )}
+          {queue.map(item => (
+            <div
+              key={`${item.type}-${item.id}`}
+              className="flex justify-between items-center p-2 border-b last:border-none"
+            >
+              <div>
+                {item.type === 'booking' && (
+                  <>
+                    <span className="font-semibold text-blue-700">Seat Booking:</span>{' '}
+                    {item.name} — ₹{item.amount}
+                  </>
+                )}
+                {item.type === 'seat_change' && (
+                  <>
+                    <span className="font-semibold text-yellow-700">Seat Change:</span>{' '}
+                    {item.user_name} → {item.requested_seat}
+                  </>
+                )}
+                {item.type === 'expiry' && (
+                  <>
+                    <span className="font-semibold text-red-700">Expiring Membership:</span>{' '}
+                    {item.name} (valid till {item.valid_till})
+                  </>
+                )}
+              </div>
+              <div className="space-x-2">
+                {item.type === 'booking' && (
+                  <Button
+                    size="sm"
+                    className="bg-green-500 text-white hover:bg-green-600"
+                    onClick={async () => {
+                      await handleApprove(item.id);
+                      handleQueueRemove(item.id);
+                    }}
+                  >
+                    Approve
+                  </Button>
+                )}
+                {item.type === 'seat_change' && (
+                  <Button
+                    size="sm"
+                    className="bg-blue-500 text-white hover:bg-blue-600"
+                    onClick={async () => {
+                      await handleSeatChangeReview(item.id);
+                      handleQueueRemove(item.id);
+                    }}
+                  >
+                    Review
+                  </Button>
+                )}
+                {item.type === 'expiry' && (
+                  <Button
+                    size="sm"
+                    className="bg-purple-500 text-white hover:bg-purple-600"
+                    onClick={async () => {
+                      await handleMembershipRenew(item.id);
+                      handleQueueRemove(item.id);
+                    }}
+                  >
+                    Renew
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* --- BOOKING MANAGEMENT TABLE --- */}
         <Card className="p-6 shadow bg-white">
           <CardContent>
             <div className="flex justify-between mb-2">
