@@ -22,8 +22,8 @@ export const AdminDashboard = () => {
     available: 0,
     biometric: 0
   });
-
-  // Load initial data
+  
+  // Load initial data okay
   useEffect(() => {
     loadBookings();
     loadSeatChangeRequests();
