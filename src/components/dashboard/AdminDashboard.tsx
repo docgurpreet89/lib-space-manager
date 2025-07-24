@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  const [bookings, setBookings] = useState([]);
+  const [pendingBookings, setPendingBookings] = useState([]);
+  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
+  const [expiringMembers, setExpiringMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingBooking, setEditingBooking] = useState(null);
@@ -24,94 +26,48 @@ export const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    loadBookings();
     loadStats();
+    loadPendingBookings();
+    loadSeatChangeRequests();
+    loadExpiringMembers();
   }, []);
 
-  const loadBookings = async () => {
-    const { data, error } = await supabase
-      .from('seat_bookings')
-      .select('*');
-    if (!error) {
-      setBookings(data);
-    }
-  };
-
   const loadStats = async () => {
-    const pending = await supabase
-      .from('seat_bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-
-    const seatChanges = await supabase
-      .from('seat_change_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-
-    const seats = await supabase
-      .from('seats')
-      .select('seat_id');
-
-    const booked = await supabase
-      .from('seat_bookings')
-      .select('seat_id')
-      .eq('status', 'approved');
-
-    const held = await supabase
-      .from('seat_holds')
-      .select('seat_id')
-      .gte('lock_expiry', new Date().toISOString());
-
-    const biometric = await supabase
-      .from('biometric_cards')
-      .select('*', { count: 'exact', head: true });
+    const { count: pending } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { data: seats } = await supabase.from('seats').select('id');
+    const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
+    const { data: held } = await supabase.from('seat_holds').select('id');
+    const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
 
     setStats({
-      pending: pending.count || 0,
-      seatChanges: seatChanges.count || 0,
-      expiring: 0, // you can add an RPC or logic for expiring
-      totalSeats: seats.data?.length || 0,
-      booked: booked.data?.length || 0,
-      held: held.data?.length || 0,
-      available: (seats.data?.length || 0) - (booked.data?.length || 0) - (held.data?.length || 0),
-      biometric: biometric.count || 0
+      pending: pending || 0,
+      seatChanges: seatChanges || 0,
+      expiring: 0,
+      totalSeats: seats?.length || 0,
+      booked: booked?.length || 0,
+      held: held?.length || 0,
+      available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
+      biometric: biometric || 0
     });
   };
 
-  const handleApproveClick = (booking) => setEditingBooking({ ...booking, biometricCard: '' });
-
-  const handleApproveSubmit = async () => {
-    const updated = { ...editingBooking, status: 'approved' };
-    await supabase
-      .from('seat_bookings')
-      .update({ status: 'approved' })
-      .eq('id', updated.id);
-
-    await supabase.from('approved_transactions').insert({
-      booking_id: updated.id,
-      name: updated.name,
-      amount: updated.amount,
-      date: updated.date,
-      validity: updated.validity,
-      biometric_card: updated.biometricCard
-    });
-
-    setEditingBooking(null);
-    loadBookings();
-    loadStats();
+  const loadPendingBookings = async () => {
+    const { data } = await supabase.from('seat_bookings').select('*').eq('status', 'pending');
+    setPendingBookings(data || []);
   };
 
-  const handleReject = async (id) => {
-    await supabase
-      .from('seat_bookings')
-      .update({ status: 'rejected' })
-      .eq('id', id);
-
-    loadBookings();
-    loadStats();
+  const loadSeatChangeRequests = async () => {
+    const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
+    setSeatChangeRequests(data || []);
   };
 
-  const filteredBookings = bookings.filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const loadExpiringMembers = async () => {
+    const { data } = await supabase.rpc('get_soon_expiring_memberships');
+    setExpiringMembers(data || []);
+  };
+
+  const filteredBookings = pendingBookings.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
@@ -132,6 +88,7 @@ export const AdminDashboard = () => {
           </div>
         ))}
       </div>
+
       <div className="flex-1 p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
@@ -143,49 +100,37 @@ export const AdminDashboard = () => {
           <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
           <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
         </div>
+
         <Card className="p-6 shadow bg-white">
           <CardContent>
-            <div className="flex justify-between mb-2">
-              <div className="font-bold">Booking Management</div>
-              <Input placeholder="Search by name" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-64" />
-            </div>
-            <table className="min-w-full bg-white rounded">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="p-2 text-left text-xs font-bold">S/N</th>
-                  <th className="p-2 text-left text-xs font-bold">Name</th>
-                  <th className="p-2 text-left text-xs font-bold">Amount</th>
-                  <th className="p-2 text-left text-xs font-bold">Date</th>
-                  <th className="p-2 text-left text-xs font-bold">Validity</th>
-                  <th className="p-2 text-left text-xs font-bold">Status</th>
-                  <th className="p-2 text-left text-xs font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBookings.map((b, index) => (
-                  <tr key={b.id} className="border-b">
-                    <td className="p-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td className="p-2 text-xs">{b.name}</td>
-                    <td className="p-2 text-xs">₹{b.amount}</td>
-                    <td className="p-2 text-xs">{b.date}</td>
-                    <td className="p-2 text-xs">{b.validity}</td>
-                    <td className="p-2 text-xs">{b.status}</td>
-                    <td className="p-2 text-xs space-x-1">
-                      {b.status === 'pending' && (
-                        <>
-                          <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleApproveClick(b)}>Approve</Button>
-                          <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={() => handleReject(b.id)}>Reject</Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
+            <div className="font-bold text-lg mb-4">Booking Management (Quick Actions)</div>
+            <div className="space-y-4">
+              <div>
+                <div className="font-semibold mb-1">Pending Bookings</div>
+                {paginatedBookings.map((b, i) => (
+                  <div key={b.id} className="border p-2 rounded-md flex justify-between items-center">
+                    <div>{b.name} — ₹{b.amount}</div>
+                    <Button size="sm">Approve</Button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            <div className="flex justify-between mt-2">
-              <Button size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs text-gray-500">Page {currentPage}</span>
-              <Button size="sm" disabled={currentPage * itemsPerPage >= filteredBookings.length} onClick={() => setCurrentPage(p => p + 1)}>Next</Button>
+              </div>
+              <div>
+                <div className="font-semibold mb-1">Seat Change Requests</div>
+                {seatChangeRequests.map((req, i) => (
+                  <div key={req.id} className="border p-2 rounded-md flex justify-between items-center">
+                    <div>{req.user_name} → {req.requested_seat}</div>
+                    <Button size="sm">Review</Button>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="font-semibold mb-1">Expiring Members</div>
+                {expiringMembers.map((m, i) => (
+                  <div key={i} className="border p-2 rounded-md">
+                    {m.name} — Valid till {m.valid_till}
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
