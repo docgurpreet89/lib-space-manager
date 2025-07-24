@@ -65,7 +65,7 @@ export const AdminDashboard = () => {
       console.error('Failed to load pending bookings:', error.message);
     }
   };
-  console.log(supabase.auth.user().id);
+  
   const loadSeatChangeRequests = async () => {
     try {
       const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
@@ -115,7 +115,7 @@ export const AdminDashboard = () => {
     ];
     setQueue(merged);
   }, [pendingBookings, seatChangeRequests, expiringMembers]);
-
+  console.log(supabase.auth.user().id);
   const handleQueueRemove = id => setQueue(q => q.filter(item => item.id !== id));
 
   // --- PAGINATION ---
