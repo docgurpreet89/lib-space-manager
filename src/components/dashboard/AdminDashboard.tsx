@@ -65,7 +65,7 @@ export const AdminDashboard = () => {
       console.error('Failed to load pending bookings:', error.message);
     }
   };
-  
+
   const loadSeatChangeRequests = async () => {
     try {
       const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
