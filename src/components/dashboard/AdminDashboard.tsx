@@ -6,14 +6,12 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  // State hooks
   const [pendingBookings, setPendingBookings] = useState([]);
   const [seatChangeRequests, setSeatChangeRequests] = useState([]);
   const [expiringMembers, setExpiringMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const [seatLockDuration, setSeatLockDuration] = useState(10);
 
   const [stats, setStats] = useState({
     pending: 0,
@@ -26,41 +24,30 @@ export const AdminDashboard = () => {
     biometric: 0
   });
 
-  // === LOADERS ===
   useEffect(() => {
-    loadSettings();
     loadStats();
+    loadPendingBookings();
     loadSeatChangeRequests();
     loadExpiringMembers();
-    loadPendingBookings();
-    const interval = setInterval(cleanupExpiredHolds, 60000);
-    return () => clearInterval(interval);
-  }, [seatLockDuration]);
+  }, []);
 
-  const loadSettings = async () => {
-    const { data, error } = await supabase.from('library_settings').select('seat_lock_duration_minutes').single();
-    if (!error && data?.seat_lock_duration_minutes) {
-      setSeatLockDuration(data.seat_lock_duration_minutes);
-    }
-  };
-
+  // --- STATS ---
   const loadStats = async () => {
     try {
+      const { count: pending } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
       const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
       const { data: seats } = await supabase.from('seats').select('id');
-      const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
-      const { data: held } = await supabase.from('seat_holds').select('id');
+      const { count: booked } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'approved');
+      const { count: held } = await supabase.from('seat_holds').select('*', { count: 'exact', head: true });
       const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
-      const { data: pendingHolds } = await supabase.from('seat_holds').select('*');
-
       setStats({
-        pending: pendingHolds?.length || 0,
+        pending: pending || 0,
         seatChanges: seatChanges || 0,
-        expiring: 0,
+        expiring: 0, // update as needed
         totalSeats: seats?.length || 0,
-        booked: booked?.length || 0,
-        held: held?.length || 0,
-        available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
+        booked: booked || 0,
+        held: held || 0,
+        available: (seats?.length || 0) - (booked || 0) - (held || 0),
         biometric: biometric || 0
       });
     } catch (error) {
@@ -68,17 +55,12 @@ export const AdminDashboard = () => {
     }
   };
 
+  // --- PENDING BOOKINGS FROM seat_bookings ---
   const loadPendingBookings = async () => {
     try {
-      const { data, error } = await supabase.from('seat_holds').select('id, name, amount, status, created_at');
+      const { data, error } = await supabase.from('seat_bookings').select('*').eq('status', 'pending').order('created_at', { ascending: false });
       if (error) throw error;
-      const now = new Date();
-      const filtered = (data || []).filter(hold => {
-        const createdAt = new Date(hold.created_at);
-        const diffMinutes = (now - createdAt) / (1000 * 60);
-        return diffMinutes <= seatLockDuration;
-      });
-      setPendingBookings(filtered);
+      setPendingBookings(data || []);
     } catch (error) {
       console.error('Failed to load pending bookings:', error.message);
     }
@@ -102,13 +84,10 @@ export const AdminDashboard = () => {
     }
   };
 
-  // === HANDLERS ===
+  // --- ACTIONS ---
   const handleApprove = async (bookingId) => {
     try {
-      const { data: holdData, error: holdError } = await supabase.from('seat_holds').select('*').eq('id', bookingId).single();
-      if (holdError) throw holdError;
-      await supabase.from('seat_bookings').update({ status: 'approved' }).eq('seat_hold_id', bookingId);
-      await supabase.from('seat_holds').delete().eq('id', bookingId);
+      await supabase.from('seat_bookings').update({ status: 'approved' }).eq('id', bookingId);
       await loadPendingBookings();
       await loadStats();
     } catch (error) {
@@ -116,7 +95,6 @@ export const AdminDashboard = () => {
     }
   };
 
-  // Implement your logic for review and renew
   const handleSeatChangeReview = async (id) => {
     await supabase.from('seat_change_requests').update({ status: 'reviewed' }).eq('id', id);
     await loadSeatChangeRequests();
@@ -127,53 +105,7 @@ export const AdminDashboard = () => {
     await loadExpiringMembers();
   };
 
-  // --- NEW ROBUST CLEANUP FUNCTION ---
-  const cleanupExpiredHolds = async () => {
-    try {
-      const { data } = await supabase.from('seat_holds').select('*');
-      const now = new Date();
-      for (const hold of data || []) {
-        const createdAt = new Date(hold.created_at);
-        const diffMinutes = (now - createdAt) / (1000 * 60);
-        if (diffMinutes > seatLockDuration) {
-          // Check if seat_booking exists
-          const { data: bookingData } = await supabase
-            .from('seat_bookings')
-            .select('*')
-            .eq('seat_hold_id', hold.id)
-            .maybeSingle();
-
-          if (bookingData) {
-            // Update to timeout if still pending
-            if (bookingData.status === 'pending') {
-              await supabase
-                .from('seat_bookings')
-                .update({ status: 'timeout' })
-                .eq('id', bookingData.id);
-            }
-          } else {
-            // Insert timeout booking
-            await supabase.from('seat_bookings').insert({
-              name: hold.name,
-              amount: hold.amount,
-              seat_hold_id: hold.id,
-              status: 'timeout'
-            });
-          }
-
-          // Remove the hold
-          await supabase.from('seat_holds').delete().eq('id', hold.id);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to cleanup expired holds:', error.message);
-    }
-  };
-
-  const filteredBookings = pendingBookings.filter(b => (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
-  const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  // --- Notification Queue ---
+  // --- NOTIFICATION QUEUE ---
   const [queue, setQueue] = useState([]);
   useEffect(() => {
     const merged = [
@@ -185,6 +117,10 @@ export const AdminDashboard = () => {
   }, [pendingBookings, seatChangeRequests, expiringMembers]);
 
   const handleQueueRemove = id => setQueue(q => q.filter(item => item.id !== id));
+
+  // --- PAGINATION ---
+  const filteredBookings = pendingBookings.filter(b => (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+  const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // --- UI ---
   return (
