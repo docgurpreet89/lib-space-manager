@@ -105,11 +105,9 @@ export const AdminDashboard = () => {
       const { data: holdData, error: holdError } = await supabase.from('seat_holds').select('*').eq('id', bookingId).single();
       if (holdError) throw holdError;
 
-      await supabase.from('seat_bookings').insert({
-        name: holdData.name,
-        amount: holdData.amount,
+      await supabase.from('seat_bookings').update({
         status: 'approved'
-      });
+      }).eq('seat_hold_id', bookingId);
 
       await supabase.from('seat_holds').delete().eq('id', bookingId);
       await loadPendingBookings();
@@ -127,11 +125,10 @@ export const AdminDashboard = () => {
         const createdAt = new Date(hold.created_at);
         const diffMinutes = (now - createdAt) / (1000 * 60);
         if (diffMinutes > seatLockDuration) {
-          await supabase.from('seat_bookings').insert({
-            name: hold.name,
-            amount: hold.amount,
-            status: 'cancelled'
-          });
+          await supabase.from('seat_bookings').update({
+            status: 'timeout'
+          }).eq('seat_hold_id', hold.id);
+
           await supabase.from('seat_holds').delete().eq('id', hold.id);
         }
       }
@@ -144,19 +141,20 @@ export const AdminDashboard = () => {
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="flex">
-      <div className="w-64 bg-blue-900 text-white p-4 space-y-2 min-h-screen">
-        <div className="text-2xl font-bold mb-4">Admin Dashboard</div>
-        {[{ label: 'Pending Bookings', icon: ClipboardList },
+    <div className="flex min-h-screen bg-gray-100">
+      <div className="w-64 bg-blue-800 text-white p-4 space-y-2">
+        <div className="text-2xl font-bold mb-4">Admin</div>
+        {[
+          { label: 'Pending Bookings', icon: ClipboardList },
           { label: 'Seat Change Requests', icon: Repeat },
           { label: 'All Users', icon: Users },
           { label: 'All Transactions', icon: FileText },
           { label: 'Notice Management', icon: Bell },
           { label: 'Expiring Memberships', icon: FileText },
-          { label: 'Biometric Enrollments', icon: IdCard }].map(item => (
-          <div key={item.label} className="flex items-center space-x-2 p-2 hover:bg-blue-800 rounded cursor-pointer">
-            <item.icon className="w-4 h-4" />
-            <span>{item.label}</span>
+          { label: 'Biometric Enrollments', icon: IdCard }
+        ].map(item => (
+          <div key={item.label} className="flex items-center p-2 rounded hover:bg-blue-700 cursor-pointer">
+            <item.icon className="w-4 h-4 mr-2" /> {item.label}
           </div>
         ))}
       </div>
@@ -184,8 +182,7 @@ export const AdminDashboard = () => {
                   <th className="p-2 text-left text-xs font-bold">S/N</th>
                   <th className="p-2 text-left text-xs font-bold">Name</th>
                   <th className="p-2 text-left text-xs font-bold">Amount</th>
-                  <th className="p-2 text-left text-xs font-bold">Date</th>
-                  <th className="p-2 text-left text-xs font-bold">Status</th>
+                  <th className="p-2 text-left text-xs font-bold">Created At</th>
                   <th className="p-2 text-left text-xs font-bold">Actions</th>
                 </tr>
               </thead>
@@ -195,9 +192,8 @@ export const AdminDashboard = () => {
                     <td className="p-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                     <td className="p-2 text-xs">{b.name}</td>
                     <td className="p-2 text-xs">₹{b.amount}</td>
-                    <td className="p-2 text-xs">{new Date(b.created_at).toLocaleDateString()}</td>
-                    <td className="p-2 text-xs">{b.status}</td>
-                    <td className="p-2 text-xs">
+                    <td className="p-2 text-xs">{new Date(b.created_at).toLocaleString()}</td>
+                    <td className="p-2 text-xs space-x-1">
                       <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleApprove(b.id)}>Approve</Button>
                     </td>
                   </tr>
