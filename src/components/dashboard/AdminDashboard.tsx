@@ -53,7 +53,7 @@ export const AdminDashboard = () => {
   };
 
   const loadPendingBookings = async () => {
-    const { data } = await supabase.from('seat_bookings').select('*').eq('status', 'pending');
+    const { data } = await supabase.from('seat_bookings').select('id, name, amount, status').eq('status', 'pending');
     setPendingBookings(data || []);
   };
 
@@ -67,7 +67,15 @@ export const AdminDashboard = () => {
     setExpiringMembers(data || []);
   };
 
-  const filteredBookings = pendingBookings.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleApprove = async (bookingId) => {
+    const { error } = await supabase.from('seat_bookings').update({ status: 'approved' }).eq('id', bookingId);
+    if (!error) {
+      loadPendingBookings();
+      loadStats();
+    }
+  };
+
+  const filteredBookings = pendingBookings.filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
@@ -107,16 +115,17 @@ export const AdminDashboard = () => {
             <div className="space-y-4">
               <div>
                 <div className="font-semibold mb-1">Pending Bookings</div>
-                {paginatedBookings.map((b, i) => (
+                {paginatedBookings.length === 0 && <div className="text-gray-500">No pending bookings found.</div>}
+                {paginatedBookings.map((b) => (
                   <div key={b.id} className="border p-2 rounded-md flex justify-between items-center">
                     <div>{b.name} — ₹{b.amount}</div>
-                    <Button size="sm">Approve</Button>
+                    <Button size="sm" onClick={() => handleApprove(b.id)}>Approve</Button>
                   </div>
                 ))}
               </div>
               <div>
                 <div className="font-semibold mb-1">Seat Change Requests</div>
-                {seatChangeRequests.map((req, i) => (
+                {seatChangeRequests.map((req) => (
                   <div key={req.id} className="border p-2 rounded-md flex justify-between items-center">
                     <div>{req.user_name} → {req.requested_seat}</div>
                     <Button size="sm">Review</Button>
