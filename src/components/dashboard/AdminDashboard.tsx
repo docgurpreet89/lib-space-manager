@@ -11,7 +11,7 @@ export const AdminDashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [seatChangeRequests, setSeatChangeRequests] = useState([]);
   const [expiringMembers, setExpiringMembers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [seatMap, setSeatMap] = useState({});
   const [stats, setStats] = useState({
     pending: 0,
     seatChanges: 0,
@@ -22,28 +22,38 @@ export const AdminDashboard = () => {
     available: 0,
     biometric: 0
   });
-  
-  // Load initial data okay
+
+  // Load initial data
   useEffect(() => {
     loadBookings();
     loadSeatChangeRequests();
     loadExpiringMembers();
+    loadSeatMap();
     loadStats();
   }, []);
 
   const loadBookings = async () => {
     const { data, error } = await supabase.from('seat_bookings').select('*');
-    if (!error) setBookings(data);
+    if (!error) setBookings(data || []);
   };
 
   const loadSeatChangeRequests = async () => {
     const { data, error } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
-    if (!error) setSeatChangeRequests(data);
+    if (!error) setSeatChangeRequests(data || []);
   };
 
   const loadExpiringMembers = async () => {
     const { data, error } = await supabase.rpc('get_soon_expiring_memberships');
-    if (!error) setExpiringMembers(data);
+    if (!error) setExpiringMembers(data || []);
+  };
+
+  const loadSeatMap = async () => {
+    // Assumes seats table has columns seat_id and seat_number
+    const { data, error } = await supabase.from('seats').select('seat_id, seat_number');
+    if (!error && data) {
+      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_number }), {});
+      setSeatMap(map);
+    }
   };
 
   const loadStats = async () => {
@@ -70,18 +80,26 @@ export const AdminDashboard = () => {
   const [queue, setQueue] = useState([]);
   useEffect(() => {
     const merged = [
-      ...bookings.filter(b => b.status === 'pending').map(b => ({
-        id: b.id,
-        type: 'booking',
-        label: `Booking Request: ${b.name}`,
-        date: b.created_at || b.date
-      })),
+      // Pending Booking Requests with seat number
+      ...bookings
+        .filter(b => b.status === 'pending')
+        .map(b => {
+          const seatNum = seatMap[b.seat_id] || b.seat_id;
+          return {
+            id: b.id,
+            type: 'booking',
+            label: `Seat ${seatNum} Booking Request`,
+            date: b.from_time || b.created_at
+          };
+        }),
+      // Seat Change Requests
       ...seatChangeRequests.map(r => ({
         id: r.id,
         type: 'seat_change',
-        label: `Seat Change: ${r.user_name}`,
+        label: `Seat Change Request: ${r.user_name}`,
         date: r.created_at
       })),
+      // Expiring Memberships
       ...expiringMembers.map(m => ({
         id: m.id || m.user_id,
         type: 'expiry',
@@ -90,9 +108,9 @@ export const AdminDashboard = () => {
       })),
     ];
     setQueue(merged);
-  }, [bookings, seatChangeRequests, expiringMembers]);
+  }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
 
-  const handleActionClick = (item) => {
+  const handleActionClick = item => {
     switch (item.type) {
       case 'booking':
         navigate('/admin/pending-bookings');
@@ -102,8 +120,6 @@ export const AdminDashboard = () => {
         break;
       case 'expiry':
         navigate('/admin/expiring-memberships');
-        break;
-      default:
         break;
     }
     setQueue(q => q.filter(i => i.id !== item.id));
