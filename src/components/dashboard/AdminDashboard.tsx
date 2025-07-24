@@ -11,7 +11,6 @@ export const AdminDashboard = () => {
   const [expiringMembers, setExpiringMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingBooking, setEditingBooking] = useState(null);
   const itemsPerPage = 5;
 
   const [stats, setStats] = useState({
@@ -33,49 +32,69 @@ export const AdminDashboard = () => {
   }, []);
 
   const loadStats = async () => {
-    const { count: pending } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-    const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-    const { data: seats } = await supabase.from('seats').select('id');
-    const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
-    const { data: held } = await supabase.from('seat_holds').select('id');
-    const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
+    try {
+      const { count: pending } = await supabase.from('seat_bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const { data: seats } = await supabase.from('seats').select('id');
+      const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
+      const { data: held } = await supabase.from('seat_holds').select('id');
+      const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
 
-    setStats({
-      pending: pending || 0,
-      seatChanges: seatChanges || 0,
-      expiring: 0,
-      totalSeats: seats?.length || 0,
-      booked: booked?.length || 0,
-      held: held?.length || 0,
-      available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
-      biometric: biometric || 0
-    });
-  };
-
-  const loadPendingBookings = async () => {
-    const { data } = await supabase.from('seat_bookings').select('id, name, amount, status').eq('status', 'pending');
-    setPendingBookings(data || []);
-  };
-
-  const loadSeatChangeRequests = async () => {
-    const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
-    setSeatChangeRequests(data || []);
-  };
-
-  const loadExpiringMembers = async () => {
-    const { data } = await supabase.rpc('get_soon_expiring_memberships');
-    setExpiringMembers(data || []);
-  };
-
-  const handleApprove = async (bookingId) => {
-    const { error } = await supabase.from('seat_bookings').update({ status: 'approved' }).eq('id', bookingId);
-    if (!error) {
-      loadPendingBookings();
-      loadStats();
+      setStats({
+        pending: pending || 0,
+        seatChanges: seatChanges || 0,
+        expiring: 0,
+        totalSeats: seats?.length || 0,
+        booked: booked?.length || 0,
+        held: held?.length || 0,
+        available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
+        biometric: biometric || 0
+      });
+    } catch (error) {
+      console.error('Failed to load stats:', error.message);
     }
   };
 
-  const filteredBookings = pendingBookings.filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const loadPendingBookings = async () => {
+    try {
+      const { data, error } = await supabase.from('seat_bookings').select('id, name, amount, status').eq('status', 'pending');
+      if (error) throw error;
+      setPendingBookings(data || []);
+    } catch (error) {
+      console.error('Failed to load pending bookings:', error.message);
+    }
+  };
+
+  const loadSeatChangeRequests = async () => {
+    try {
+      const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
+      setSeatChangeRequests(data || []);
+    } catch (error) {
+      console.error('Failed to load seat change requests:', error.message);
+    }
+  };
+
+  const loadExpiringMembers = async () => {
+    try {
+      const { data } = await supabase.rpc('get_soon_expiring_memberships');
+      setExpiringMembers(data || []);
+    } catch (error) {
+      console.error('Failed to load expiring members:', error.message);
+    }
+  };
+
+  const handleApprove = async (bookingId) => {
+    try {
+      const { error } = await supabase.from('seat_bookings').update({ status: 'approved' }).eq('id', bookingId);
+      if (error) throw error;
+      await loadPendingBookings();
+      await loadStats();
+    } catch (error) {
+      console.error('Failed to approve booking:', error.message);
+    }
+  };
+
+  const filteredBookings = pendingBookings.filter(b => (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
