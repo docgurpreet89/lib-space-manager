@@ -28,9 +28,9 @@ export const AdminDashboard = () => {
   useEffect(() => {
     loadSettings();
     loadStats();
-    loadPendingBookings();
     loadSeatChangeRequests();
     loadExpiringMembers();
+    loadPendingBookings();
     const interval = setInterval(cleanupExpiredHolds, 60000);
     return () => clearInterval(interval);
   }, [seatLockDuration]);
@@ -70,7 +70,13 @@ export const AdminDashboard = () => {
     try {
       const { data, error } = await supabase.from('seat_holds').select('id, name, amount, status, created_at');
       if (error) throw error;
-      setPendingBookings(data || []);
+      const now = new Date();
+      const filtered = (data || []).filter(hold => {
+        const createdAt = new Date(hold.created_at);
+        const diffMinutes = (now - createdAt) / (1000 * 60);
+        return diffMinutes <= seatLockDuration;
+      });
+      setPendingBookings(filtered);
     } catch (error) {
       console.error('Failed to load pending bookings:', error.message);
     }
