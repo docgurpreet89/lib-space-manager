@@ -25,7 +25,7 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
       <div
         className={`
           flex flex-col
-          fixed top-0 left-0
+          fixed top-0 left-0 right-10
           h-screen w-80
           border-r border-[#E0E0E0]
           z-50
