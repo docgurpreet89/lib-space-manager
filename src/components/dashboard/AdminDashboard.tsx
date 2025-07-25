@@ -194,14 +194,54 @@ export const AdminDashboard = () => {
       </div>
       <div className="flex-1 p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className={statCardColors[0] + " p-4"}><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
-          <Card className={statCardColors[1] + " p-4"}><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
-          <Card className={statCardColors[2] + " p-4"}><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
-          <Card className={statCardColors[3] + " p-4"}><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
-          <Card className={statCardColors[4] + " p-4"}><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
-          <Card className={statCardColors[5] + " p-4"}><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
-          <Card className={statCardColors[6] + " p-4"}><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
-          <Card className={statCardColors[7] + " p-4"}><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
+          <Card className={statCardColors[0] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.pending}</div>
+              <div className="text-base font-semibold">Pending Bookings</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[1] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.seatChanges}</div>
+              <div className="text-base font-semibold">Seat Changes</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[2] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.expiring}</div>
+              <div className="text-base font-semibold">Expiring Memberships</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[3] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.totalSeats}</div>
+              <div className="text-base font-semibold">Total Seats</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[4] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.booked}</div>
+              <div className="text-base font-semibold">Booked</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[5] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.held}</div>
+              <div className="text-base font-semibold">On Hold</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[6] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.available}</div>
+              <div className="text-base font-semibold">Available</div>
+            </CardContent>
+          </Card>
+          <Card className={statCardColors[7] + " p-4 flex items-center gap-4"}>
+            <CardContent className="flex items-center gap-3">
+              <div className="text-5xl font-extrabold tracking-tight">{stats.biometric}</div>
+              <div className="text-base font-semibold flex items-center"><Fingerprint className="w-5 h-5 mr-1" />Biometric Issued</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Pending Actions as Mobile Notification Style */}
