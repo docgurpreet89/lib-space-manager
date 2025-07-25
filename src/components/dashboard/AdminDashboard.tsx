@@ -4,40 +4,34 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Menu, X, Users, Settings, Calendar, ClipboardList, Repeat,
-  FileText, Bell, Fingerprint, IdCard
+  FileText, Bell, Fingerprint, IdCard, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // Dummy components for tabbed content
 const PendingBookings = () => (
-  <Card className="p-4">
-    <CardContent>
-      <div className="font-semibold mb-2">Pending Bookings Table Here</div>
-      {/* Insert table or datagrid here */}
-      <div className="text-sm text-gray-500">Integrate booking management here.</div>
-    </CardContent>
-  </Card>
+  <Card className="p-4"><CardContent>Pending Bookings Table Here</CardContent></Card>
 );
 const SeatChangeRequests = () => (
-  <Card className="p-4">
-    <CardContent>
-      <div className="font-semibold mb-2">Seat Change Requests Table Here</div>
-      <div className="text-sm text-gray-500">Integrate seat change management here.</div>
-    </CardContent>
-  </Card>
+  <Card className="p-4"><CardContent>Seat Change Requests Table Here</CardContent></Card>
 );
 const LibrarySettings = () => (
-  <Card className="p-4">
-    <CardContent>
-      <div className="font-semibold mb-2">Library Settings Here</div>
-      <div className="text-sm text-gray-500">Library settings form or controls.</div>
-    </CardContent>
-  </Card>
+  <Card className="p-4"><CardContent>Library Settings Here</CardContent></Card>
 );
 
-export const AdminDashboard = () => {
-  const [showSidebar, setShowSidebar] = useState(false);
+const navItems = [
+  { label: 'Pending Bookings', icon: ClipboardList, hash: '#bookings' },
+  { label: 'Seat Change Requests', icon: Repeat, hash: '#changes' },
+  { label: 'All Users', icon: Users, hash: '#users' },
+  { label: 'All Transactions', icon: FileText, hash: '#transactions' },
+  { label: 'Notice Management', icon: Bell, hash: '#notices' },
+  { label: 'Expiring Memberships', icon: Calendar, hash: '#expiring' },
+  { label: 'Biometric Enrollments', icon: IdCard, hash: '#biometric' }
+];
 
-  // Replace these with Supabase dynamic data as needed
+export const AdminDashboard = () => {
+  const [showSidebar, setShowSidebar] = useState(false); // For mobile
+  const [collapsed, setCollapsed] = useState(false);     // For desktop
+
   const [stats] = useState({
     pending: 10,
     seatChanges: 3,
@@ -54,56 +48,60 @@ export const AdminDashboard = () => {
       {/* Sidebar */}
       <div
         className={`
+          fixed top-0 left-0 h-screen z-40
+          bg-blue-900 text-white border-r border-[#E0E0E0]
+          transition-all duration-300 ease-in-out
           flex flex-col
-          fixed top-0 left-0 right-10
-          h-screen w-80
-          border-r border-[#E0E0E0]
-          z-50
-          bg-blue-900 text-white
-          transition-transform duration-300 ease-in-out
           ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
+          ${collapsed ? 'w-20' : 'w-80'}
           lg:translate-x-0 lg:static lg:z-auto
         `}
       >
+        {/* Sidebar header */}
         <div className="p-6 border-b border-[#253356] flex items-center justify-between bg-blue-900">
-          <h2 className="text-xl font-semibold">Admin Panel</h2>
-          <Button
-            onClick={() => setShowSidebar(false)}
-            className="lg:hidden p-2 hover:bg-blue-700 rounded-lg"
-            variant="ghost"
-          >
-            <X size={20} className="text-white" />
-          </Button>
+          {!collapsed &&
+            <h2 className="text-xl font-semibold whitespace-nowrap">Admin Panel</h2>
+          }
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setCollapsed(c => !c)}
+              className="hidden lg:flex p-2 hover:bg-blue-700 rounded-lg"
+              variant="ghost"
+              tabIndex={-1}
+            >
+              {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </Button>
+            <Button
+              onClick={() => setShowSidebar(false)}
+              className="lg:hidden p-2 hover:bg-blue-700 rounded-lg"
+              variant="ghost"
+            >
+              <X size={20} className="text-white" />
+            </Button>
+          </div>
         </div>
         {/* Navigation */}
         <nav className="flex-1 p-0 flex flex-col">
-          <a href="#bookings" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <ClipboardList size={20} /> Pending Bookings
-          </a>
-          <a href="#changes" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Repeat size={20} /> Seat Change Requests
-          </a>
-          <a href="#users" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Users size={20} /> All Users
-          </a>
-          <a href="#transactions" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <FileText size={20} /> All Transactions
-          </a>
-          <a href="#notices" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Bell size={20} /> Notice Management
-          </a>
-          <a href="#expiring" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Calendar size={20} /> Expiring Memberships
-          </a>
-          <a href="#biometric" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <IdCard size={20} /> Biometric Enrollments
-          </a>
+          {navItems.map(item => (
+            <a
+              key={item.label}
+              href={item.hash}
+              className={`
+                flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition
+                ${collapsed ? 'justify-center' : ''}
+              `}
+              title={collapsed ? item.label : undefined}
+            >
+              <item.icon size={20} />
+              {!collapsed && item.label}
+            </a>
+          ))}
           <div className="flex-1" />
         </nav>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-80 p-6">
+      <div className={`${collapsed ? 'lg:ml-20' : 'lg:ml-80'} flex-1 p-6 transition-all duration-300`}>
         {/* Mobile Header */}
         <div className="lg:hidden mb-6">
           <Button
@@ -185,7 +183,7 @@ export const AdminDashboard = () => {
                 value="bookings"
                 className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
               >
-                Pending Bookings
+                Pending Bookings Fresh
               </TabsTrigger>
               <TabsTrigger
                 value="changes"
