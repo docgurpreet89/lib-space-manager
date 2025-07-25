@@ -1,13 +1,12 @@
+
 import { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { PendingBookings } from '@/components/admin/PendingBookings';
 import { SeatChangeRequests } from '@/components/admin/SeatChangeRequests';
-import { AllUsersPage } from '@/components/admin/AllUsersPage';
-import { AllTransactionsPage } from '@/components/admin/AllTransactionsPage';
-import { NoticeManagement } from '@/components/admin/NoticeManagement';
-import { SoonExpiringMemberships } from '@/components/admin/SoonExpiringMemberships';
+import { LibrarySettings } from '@/components/admin/LibrarySettings';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Calendar, Users, FileText, Bell, Clock, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Users, Settings, Calendar } from 'lucide-react';
 
 interface AdminDashboardProps {
   user: User;
@@ -15,98 +14,106 @@ interface AdminDashboardProps {
 
 export const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [showSidebar, setShowSidebar] = useState(false);
-  const [activeTab, setActiveTab] = useState('pendingBookings');
-
-  const navItems = [
-    { key: 'pendingBookings', label: 'Pending Bookings', icon: <Calendar size={18} />, badge: 3 },
-    { key: 'seatChanges', label: 'Seat Change Requests', icon: <Users size={18} />, badge: 1 },
-    { key: 'users', label: 'All Users', icon: <Users size={18} /> },
-    { key: 'transactions', label: 'All Transactions', icon: <FileText size={18} /> },
-    { key: 'notices', label: 'Notice Management', icon: <Bell size={18} /> },
-    { key: 'expiring', label: 'Expiring Memberships', icon: <Clock size={18} /> },
-  ];
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'pendingBookings':
-        return <PendingBookings />;
-      case 'seatChanges':
-        return <SeatChangeRequests />;
-      case 'users':
-        return <AllUsersPage />;
-      case 'transactions':
-        return <AllTransactionsPage />;
-      case 'notices':
-        return <NoticeManagement />;
-      case 'expiring':
-        return <SoonExpiringMemberships />;
-      default:
-        return <PendingBookings />;
-    }
-  };
 
   return (
-    <div className="flex min-h-screen bg-[#f5f7fa]">
+    <div className="min-h-screen bg-white relative">
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+      
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-64 bg-white border-r shadow-md z-50 transform transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 h-full w-80 app-card border-r border-[#E0E0E0] z-50 transform transition-transform duration-300 ease-in-out
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:z-auto
       `}>
-        <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-bold text-[#002e6e] flex items-center gap-2">
-            <LayoutDashboard size={20} /> Admin
-          </h2>
-          <Button 
-            onClick={() => setShowSidebar(false)} 
-            className="lg:hidden p-2"
+        <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-[#333333]">Admin Panel</h2>
+          <Button
+            onClick={() => setShowSidebar(false)}
+            className="lg:hidden p-2 hover:bg-[#F5F5F5] rounded-lg"
             variant="ghost"
           >
-            <X size={20} />
+            <X size={20} className="text-[#666666]" />
           </Button>
         </div>
-        <nav className="p-2">
-          {navItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => {
-                setActiveTab(item.key);
-                setShowSidebar(false);
-              }}
-              className={`w-full flex items-center justify-between p-2 rounded-lg text-sm font-medium transition-colors
-                ${activeTab === item.key 
-                  ? 'bg-[#00B9F1] text-white' 
-                  : 'text-[#555] hover:bg-[#e6f7ff] hover:text-[#00B9F1]'
-                }`}
-              title={item.label}
-            >
-              <span className="flex items-center gap-2">
-                {item.icon}
-                {item.label}
-              </span>
-              {item.badge && (
-                <span className="bg-red-500 text-white text-xs rounded-full px-2">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
+        
+        <nav className="p-4 space-y-2">
+          <a href="#bookings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+            <Calendar size={20} />
+            Pending Bookings
+          </a>
+          <a href="#changes" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+            <Users size={20} />
+            Seat Changes
+          </a>
+          <a href="#settings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+            <Settings size={20} />
+            Settings
+          </a>
         </nav>
       </div>
-
+      
       {/* Main Content */}
-      <div className="flex-1 p-6 lg:ml-64">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-[#002e6e]">Admin Dashboard</h1>
-          <Button 
-            onClick={() => setShowSidebar(true)} 
-            className="lg:hidden paytm-button-secondary"
+      <div className="lg:ml-80 p-4">
+        {/* Mobile Header */}
+        <div className="lg:hidden mb-6">
+          <Button
+            onClick={() => setShowSidebar(true)}
+            className="paytm-button-secondary p-3"
           >
             <Menu size={20} />
           </Button>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          {renderContent()}
+        
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-[#333333] mb-2">
+              Admin Dashboard
+            </h2>
+            <p className="text-[#666666]">
+              Manage bookings, seat changes, and library settings
+            </p>
+          </div>
+
+          <Tabs defaultValue="bookings" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl">
+              <TabsTrigger 
+                value="bookings" 
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
+              >
+                Pending Bookings
+              </TabsTrigger>
+              <TabsTrigger 
+                value="changes" 
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
+              >
+                Seat Changes
+              </TabsTrigger>
+              <TabsTrigger 
+                value="settings" 
+                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
+              >
+                Settings
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="bookings" className="mt-6">
+              <PendingBookings />
+            </TabsContent>
+            
+            <TabsContent value="changes" className="mt-6">
+              <SeatChangeRequests />
+            </TabsContent>
+            
+            <TabsContent value="settings" className="mt-6">
+              <LibrarySettings />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

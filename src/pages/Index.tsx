@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthForm } from '@/components/auth/AuthForm';
+import { AppStyleAuthForm } from '@/components/auth/AppStyleAuthForm';
 import { UserDashboard } from '@/components/dashboard/UserDashboard';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
 import { LibraryNavbar } from '@/components/layout/LibraryNavbar';
@@ -12,22 +13,29 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        ensureUserRecords(session.user);
         fetchUserRole(session.user.id);
       } else {
         setLoading(false);
       }
     });
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
-          ensureUserRecords(session.user);
-          fetchUserRole(session.user.id);
+          // Wait a moment for the database trigger to complete
+          // This ensures profile and role are created before we try to fetch them
+          setTimeout(() => {
+            fetchUserRole(session.user.id);
+          }, 1000);
         } else {
           setUserRole(null);
           setLoading(false);
@@ -38,47 +46,41 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const ensureUserRecords = async (userObj: User) => {
-    try {
-      // Upsert into profiles
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: userObj.id,
-        email: userObj.email,
-        full_name: userObj.user_metadata?.full_name || '',
-        phone: userObj.user_metadata?.phone || ''
-      });
-
-      if (profileError) {
-        console.error('Profile upsert failed:', profileError);
-      }
-
-      // Upsert into user_roles
-      const { error: roleError } = await supabase.from('user_roles').upsert({
-        user_id: userObj.id,
-        role: 'user'
-      }, { onConflict: 'user_id' }); // Prevent duplicate insert
-
-      if (roleError) {
-        console.error('User role upsert failed:', roleError);
-      }
-    } catch (err) {
-      console.error('Error ensuring user records:', err);
-    }
-  };
-
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
+      console.log('Fetching user role for:', userId);
+      
+      // Try to get user role with retries for newly verified users
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user role:', error);
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching user role:', error);
+        }
+
+        if (data?.role) {
+          console.log('User role found:', data.role);
+          setUserRole(data.role);
+          break;
+        } else {
+          console.log(`User role not found, attempt ${attempts + 1}/${maxAttempts}`);
+          attempts++;
+          if (attempts < maxAttempts) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            // Default to 'user' if not found after retries
+            setUserRole('user');
+          }
+        }
       }
-
-      setUserRole(data?.role || 'user');
     } catch (error) {
       console.error('Error:', error);
       setUserRole('user');
@@ -101,7 +103,7 @@ const Index = () => {
   if (!user) {
     return (
       <div className="app-container min-h-screen">
-        <AuthForm />
+        <AppStyleAuthForm />
       </div>
     );
   }
@@ -110,12 +112,7 @@ const Index = () => {
     <div className="app-container min-h-screen">
       <LibraryNavbar user={user} userRole={userRole} />
       <main className="pb-safe">
-        {userRole === null ? (
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent"></div>
-            <span className="ml-2 text-gray-500">Loading dashboard...</span>
-          </div>
-        ) : userRole === 'admin' ? (
+        {userRole === 'admin' ? (
           <AdminDashboard user={user} />
         ) : (
           <UserDashboard user={user} />
