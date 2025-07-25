@@ -30,7 +30,6 @@ export const AdminDashboard = () => {
     loadSeatChangeRequests();
     loadExpiringMembers();
     loadSeatMap();
-    // Stats depends on expiringMembers, so load later
   }, []);
 
   useEffect(() => {
@@ -189,7 +188,7 @@ export const AdminDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 space-y-6 lg:ml-80">
+      <div className="flex-1 p-6 lg:ml-80">
         {/* Mobile Header */}
         <div className="lg:hidden mb-6">
           <Button
@@ -210,20 +209,44 @@ export const AdminDashboard = () => {
             </p>
           </div>
 
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
-            <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
-            <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
-            <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
-            <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
-            <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
-            <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
-            <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
+          {/* Statistics Cards - No gap, sharp, strong colors */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+            <Card className="rounded-none bg-blue-600 text-white p-6 border border-white"><CardContent>
+              <div>Pending Bookings</div>
+              <div className="text-2xl font-extrabold">{stats.pending}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-red-600 text-white p-6 border border-white"><CardContent>
+              <div>Seat Changes</div>
+              <div className="text-2xl font-extrabold">{stats.seatChanges}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-emerald-600 text-white p-6 border border-white"><CardContent>
+              <div>Expiring Memberships</div>
+              <div className="text-2xl font-extrabold">{stats.expiring}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-amber-500 text-white p-6 border border-white"><CardContent>
+              <div>Total Seats</div>
+              <div className="text-2xl font-extrabold">{stats.totalSeats}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-violet-700 text-white p-6 border border-white"><CardContent>
+              <div>Booked</div>
+              <div className="text-2xl font-extrabold">{stats.booked}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-orange-600 text-white p-6 border border-white"><CardContent>
+              <div>On Hold</div>
+              <div className="text-2xl font-extrabold">{stats.held}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-cyan-600 text-white p-6 border border-white"><CardContent>
+              <div>Available</div>
+              <div className="text-2xl font-extrabold">{stats.available}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-slate-900 text-white p-6 border border-white"><CardContent>
+              <div className="flex items-center"><Fingerprint className="w-5 h-5 mr-1" /> Biometric Issued</div>
+              <div className="text-2xl font-extrabold">{stats.biometric}</div>
+            </CardContent></Card>
           </div>
 
           {/* Notification Queue */}
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-4 mt-4">
             <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
             {queue.length === 0 ? (
               <div className="text-gray-500">No pending actions. All caught up!</div>
