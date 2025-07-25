@@ -6,60 +6,173 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  const [dummyBookings, setDummyBookings] = useState([]);
+  const [pendingBookings, setPendingBookings] = useState([]);
+  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
+  const [expiringMembers, setExpiringMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingBooking, setEditingBooking] = useState(null);
   const itemsPerPage = 5;
+  const [seatLockDuration, setSeatLockDuration] = useState(10);
+
   const [stats, setStats] = useState({
-    pending: 2,
-    seatChanges: 1,
-    expiring: 3,
-    totalSeats: 50,
-    booked: 20,
-    held: 5,
-    available: 25,
-    biometric: 10
+    pending: 0,
+    seatChanges: 0,
+    expiring: 0,
+    totalSeats: 0,
+    booked: 0,
+    held: 0,
+    available: 0,
+    biometric: 0
   });
 
   useEffect(() => {
-    loadDummyBookings();
-  }, []);
+    loadSettings();
+    loadStats();
+    loadSeatChangeRequests();
+    loadExpiringMembers();
+    loadPendingBookings();
+    const interval = setInterval(cleanupExpiredHolds, 60000);
+    return () => clearInterval(interval);
+  }, [seatLockDuration]);
 
-  const loadDummyBookings = () => {
-    setDummyBookings([
-      { id: 1, name: 'John Doe', amount: 500, date: '2025-06-23', validity: '30 days', status: 'pending' },
-      { id: 2, name: 'Jane Smith', amount: 750, date: '2025-06-22', validity: '60 days', status: 'pending' }
-    ]);
+  const loadSettings = async () => {
+    const { data, error } = await supabase.from('library_settings').select('seat_lock_duration_minutes').single();
+    if (!error && data?.seat_lock_duration_minutes) {
+      setSeatLockDuration(data.seat_lock_duration_minutes);
+    }
   };
 
-  const handleEditClick = (booking) => setEditingBooking({ ...booking, biometricCard: booking.biometricCard || '', denyReason: '' });
+  const loadStats = async () => {
+    try {
+      const { count: seatChanges } = await supabase.from('seat_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const { data: seats } = await supabase.from('seats').select('id');
+      const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
+      const { data: held } = await supabase.from('seat_holds').select('id');
+      const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
+      const { data: pendingHolds } = await supabase.from('seat_holds').select('*');
 
-  const handleSaveSubmit = async () => {
-    setDummyBookings(prev => prev.map(b => b.id === editingBooking.id ? { ...editingBooking, status: 'approved' } : b));
-    await supabase.from('approved_transactions').upsert({
-      booking_id: editingBooking.id,
-      name: editingBooking.name,
-      amount: editingBooking.amount,
-      date: editingBooking.date,
-      validity: editingBooking.validity,
-      biometric_card: editingBooking.biometricCard
-    });
-    setEditingBooking(null);
+      setStats({
+        pending: pendingHolds?.length || 0,
+        seatChanges: seatChanges || 0,
+        expiring: expiringMembers.length,
+        totalSeats: seats?.length || 0,
+        booked: booked?.length || 0,
+        held: held?.length || 0,
+        available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
+        biometric: biometric || 0
+      });
+    } catch (error) {
+      console.error('Failed to load stats:', error.message);
+    }
   };
 
-  const handleDenySubmit = async () => {
-    setDummyBookings(prev => prev.map(b => b.id === editingBooking.id ? { ...editingBooking, status: 'denied' } : b));
-    await supabase.from('denied_transactions').insert({
-      booking_id: editingBooking.id,
-      name: editingBooking.name,
-      reason: editingBooking.denyReason || 'No reason provided'
-    });
-    setEditingBooking(null);
+  const loadPendingBookings = async () => {
+    try {
+      const { data, error } = await supabase.from('seat_holds').select('id, name, amount, status, created_at');
+      if (error) throw error;
+      const now = new Date();
+      const filtered = (data || []).filter(hold => {
+        const createdAt = new Date(hold.created_at);
+        const diffMinutes = (now - createdAt) / (1000 * 60);
+        return diffMinutes <= seatLockDuration;
+      });
+      setPendingBookings(filtered);
+    } catch (error) {
+      console.error('Failed to load pending bookings:', error.message);
+    }
   };
 
-  const filteredBookings = dummyBookings.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const loadSeatChangeRequests = async () => {
+    try {
+      const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
+      setSeatChangeRequests(data || []);
+    } catch (error) {
+      console.error('Failed to load seat change requests:', error.message);
+    }
+  };
+
+  const loadExpiringMembers = async () => {
+    try {
+      const { data } = await supabase.rpc('get_soon_expiring_memberships');
+      setExpiringMembers(data || []);
+    } catch (error) {
+      console.error('Failed to load expiring members:', error.message);
+    }
+  };
+
+  const handleApprove = async (bookingId) => {
+    try {
+      const { data: holdData, error: holdError } = await supabase.from('seat_holds').select('*').eq('id', bookingId).single();
+      if (holdError) throw holdError;
+
+      await supabase.from('seat_bookings').update({
+        status: 'approved'
+      }).eq('seat_hold_id', bookingId);
+
+      await supabase.from('seat_holds').delete().eq('id', bookingId);
+      await loadPendingBookings();
+      await loadStats();
+    } catch (error) {
+      console.error('Failed to approve booking:', error.message);
+    }
+  };
+
+  const cleanupExpiredHolds = async () => {
+    try {
+      const { data } = await supabase.from('seat_holds').select('*');
+      const now = new Date();
+      for (const hold of data || []) {
+        const createdAt = new Date(hold.created_at);
+        const diffMinutes = (now - createdAt) / (1000 * 60);
+        if (diffMinutes > seatLockDuration) {
+          await supabase.from('seat_bookings').update({
+            status: 'timeout'
+          }).eq('seat_hold_id', hold.id);
+
+          await supabase.from('seat_holds').delete().eq('id', hold.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to cleanup expired holds:', error.message);
+    }
+  };
+
+  // For notification mobile style cards
+  const notifications = [
+    ...pendingBookings.map(b => ({
+      type: 'booking',
+      title: `Pending Booking: ${b.name}`,
+      message: `Amount: ₹${b.amount}`,
+      time: new Date(b.created_at).toLocaleString(),
+      action: () => handleApprove(b.id)
+    })),
+    ...seatChangeRequests.map(r => ({
+      type: 'seatChange',
+      title: `Seat Change Request: ${r.user_name || r.name}`,
+      message: `Requested Seat: ${r.requested_seat || 'N/A'}`,
+      time: new Date(r.created_at).toLocaleString(),
+      action: () => {} // add approve/reject handler if needed
+    })),
+    ...expiringMembers.map(m => ({
+      type: 'expiring',
+      title: `Membership Expiring: ${m.name}`,
+      message: `Expiry: ${m.expiry_date ? new Date(m.expiry_date).toLocaleDateString() : 'soon'}`,
+      time: '',
+      action: null
+    }))
+  ];
+
+  // Distinct, non-pastel color classes
+  const statCardColors = [
+    'bg-blue-700 text-white',
+    'bg-red-600 text-white',
+    'bg-emerald-700 text-white',
+    'bg-yellow-600 text-white',
+    'bg-violet-700 text-white',
+    'bg-orange-600 text-white',
+    'bg-green-700 text-white',
+    'bg-gray-900 text-white'
+  ];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -81,79 +194,51 @@ export const AdminDashboard = () => {
       </div>
       <div className="flex-1 p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
-          <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
-          <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
-          <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
-          <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
-          <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
-          <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
-          <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
+          <Card className={statCardColors[0] + " p-4"}><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
+          <Card className={statCardColors[1] + " p-4"}><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
+          <Card className={statCardColors[2] + " p-4"}><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
+          <Card className={statCardColors[3] + " p-4"}><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
+          <Card className={statCardColors[4] + " p-4"}><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
+          <Card className={statCardColors[5] + " p-4"}><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
+          <Card className={statCardColors[6] + " p-4"}><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
+          <Card className={statCardColors[7] + " p-4"}><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
         </div>
-        <Card className="p-6 shadow bg-white">
+
+        {/* Pending Actions as Mobile Notification Style */}
+        <Card className="p-4 shadow bg-gray-50">
           <CardContent>
-            <div className="flex justify-between mb-4">
-              <div className="font-bold text-lg">Booking Management</div>
-              <Input placeholder="Search by name" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-64" />
-            </div>
-            <table className="min-w-full bg-white rounded shadow">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="p-2 text-left text-xs font-bold">S/N</th>
-                  <th className="p-2 text-left text-xs font-bold">Name</th>
-                  <th className="p-2 text-left text-xs font-bold">Amount</th>
-                  <th className="p-2 text-left text-xs font-bold">Date</th>
-                  <th className="p-2 text-left text-xs font-bold">Validity</th>
-                  <th className="p-2 text-left text-xs font-bold">Status</th>
-                  <th className="p-2 text-left text-xs font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBookings.map((b, index) => (
-                  <tr key={b.id} className="border-b hover:bg-gray-50">
-                    <td className="p-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td className="p-2 text-xs">{b.name}</td>
-                    <td className="p-2 text-xs">₹{b.amount}</td>
-                    <td className="p-2 text-xs">{b.date}</td>
-                    <td className="p-2 text-xs">{b.validity}</td>
-                    <td className="p-2 text-xs">{b.status}</td>
-                    <td className="p-2 text-xs space-x-1">
-                      {b.status === 'pending' && (
-                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white" onClick={() => handleEditClick(b)}>Review</Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex justify-between mt-2">
-              <Button size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs text-gray-500">Page {currentPage}</span>
-              <Button size="sm" disabled={currentPage * itemsPerPage >= filteredBookings.length} onClick={() => setCurrentPage(p => p + 1)}>Next</Button>
+            <div className="font-bold text-lg mb-2">Pending Actions</div>
+            <div className="flex flex-col gap-3">
+              {notifications.length === 0 && <div className="text-gray-400 text-sm">No pending actions!</div>}
+              {notifications.map((n, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-4 rounded-xl shadow border border-gray-200 bg-white px-4 py-3"
+                  style={{
+                    maxWidth: 400,
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)'
+                  }}
+                >
+                  <div className="flex-shrink-0">
+                    {n.type === 'booking' && <ClipboardList className="w-7 h-7 text-blue-700" />}
+                    {n.type === 'seatChange' && <Repeat className="w-7 h-7 text-red-600" />}
+                    {n.type === 'expiring' && <Bell className="w-7 h-7 text-yellow-600" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-base">{n.title}</div>
+                    <div className="text-xs text-gray-500">{n.message}</div>
+                    {n.time && <div className="text-xs text-gray-400">{n.time}</div>}
+                  </div>
+                  {n.type === 'booking' && (
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={n.action}>Approve</Button>
+                  )}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-        {editingBooking && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow-2xl w-full max-w-lg space-y-4">
-              <div className="text-center font-bold text-lg text-blue-700">Review Booking</div>
-              <div className="grid grid-cols-1 gap-3">
-                <Input value={editingBooking.name} onChange={e => setEditingBooking({ ...editingBooking, name: e.target.value })} placeholder="Full Name" />
-                <Input type="number" value={editingBooking.amount} onChange={e => setEditingBooking({ ...editingBooking, amount: +e.target.value })} placeholder="Amount (₹)" />
-                <Input type="date" value={editingBooking.date} onChange={e => setEditingBooking({ ...editingBooking, date: e.target.value })} />
-                <Input value={editingBooking.validity} onChange={e => setEditingBooking({ ...editingBooking, validity: e.target.value })} placeholder="Validity" />
-                <Input value={editingBooking.biometricCard} onChange={e => setEditingBooking({ ...editingBooking, biometricCard: e.target.value })} placeholder="Biometric Card Number" />
-                <Input type="file" onChange={e => setEditingBooking({ ...editingBooking, proof: e.target.files[0] })} />
-                <Input value={editingBooking.denyReason} onChange={e => setEditingBooking({ ...editingBooking, denyReason: e.target.value })} placeholder="Reason for Denial (optional)" />
-              </div>
-              <div className="flex justify-center gap-2">
-                <Button className="bg-green-500 hover:bg-green-600 text-white" onClick={handleSaveSubmit}>Approve</Button>
-                <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDenySubmit}>Deny</Button>
-                <Button className="bg-gray-400 hover:bg-gray-500 text-white" onClick={() => setEditingBooking(null)}>Cancel</Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
