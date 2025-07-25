@@ -104,7 +104,7 @@ export const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen flex bg-white">
-      {/* Sidebar */}
+      {/* Sidebar FULL HEIGHT */}
       <div className={`
         flex flex-col w-72 bg-blue-800 text-white
         fixed top-0 left-0 h-screen z-40
@@ -134,14 +134,15 @@ export const AdminDashboard = () => {
               {item.label}
             </div>
           ))}
+          {/* Extra space to push nav to full height */}
           <div className="flex-1" />
         </nav>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-screen p-0 lg:ml-72">
+      <div className="flex-1 p-6 lg:ml-72">
         {/* Mobile Header */}
-        <div className="lg:hidden px-6 py-4">
+        <div className="lg:hidden mb-6">
           <Button
             onClick={() => setShowSidebar(true)}
             className="bg-blue-800 text-white p-3"
@@ -150,61 +151,54 @@ export const AdminDashboard = () => {
           </Button>
         </div>
 
-        {/* Cards FULL PAGE */}
-        <div className="flex flex-col h-full min-h-screen">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 flex-1 h-full" style={{ minHeight: "calc(100vh - 60px)" }}>
-            <Card className="rounded-none bg-blue-600 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Pending Bookings</div>
-                <div className="text-2xl font-extrabold">{stats.pending}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-red-600 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Seat Changes</div>
-                <div className="text-2xl font-extrabold">{stats.seatChanges}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-emerald-600 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Expiring Memberships</div>
-                <div className="text-2xl font-extrabold">{stats.expiring}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-amber-500 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Total Seats</div>
-                <div className="text-2xl font-extrabold">{stats.totalSeats}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-violet-700 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Booked</div>
-                <div className="text-2xl font-extrabold">{stats.booked}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-orange-600 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>On Hold</div>
-                <div className="text-2xl font-extrabold">{stats.held}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-cyan-600 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div>Available</div>
-                <div className="text-2xl font-extrabold">{stats.available}</div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-none bg-slate-900 text-white w-full h-full border border-white flex flex-col justify-center items-center">
-              <CardContent className="flex flex-col items-center justify-center w-full h-full">
-                <div className="flex items-center"><Fingerprint className="w-5 h-5 mr-1" /> Biometric Issued</div>
-                <div className="text-2xl font-extrabold">{stats.biometric}</div>
-              </CardContent>
-            </Card>
+        <div>
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold mb-2">
+              Admin Dashboard
+            </h2>
+            <p className="text-gray-600">
+              Manage bookings, seat changes, and library settings
+            </p>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+            <Card className="rounded-none bg-blue-600 text-white p-6 border border-white"><CardContent>
+              <div>Pending Bookings</div>
+              <div className="text-2xl font-extrabold">{stats.pending}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-red-600 text-white p-6 border border-white"><CardContent>
+              <div>Seat Changes</div>
+              <div className="text-2xl font-extrabold">{stats.seatChanges}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-emerald-600 text-white p-6 border border-white"><CardContent>
+              <div>Expiring Memberships</div>
+              <div className="text-2xl font-extrabold">{stats.expiring}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-amber-500 text-white p-6 border border-white"><CardContent>
+              <div>Total Seats</div>
+              <div className="text-2xl font-extrabold">{stats.totalSeats}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-violet-700 text-white p-6 border border-white"><CardContent>
+              <div>Booked</div>
+              <div className="text-2xl font-extrabold">{stats.booked}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-orange-600 text-white p-6 border border-white"><CardContent>
+              <div>On Hold</div>
+              <div className="text-2xl font-extrabold">{stats.held}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-cyan-600 text-white p-6 border border-white"><CardContent>
+              <div>Available</div>
+              <div className="text-2xl font-extrabold">{stats.available}</div>
+            </CardContent></Card>
+            <Card className="rounded-none bg-slate-900 text-white p-6 border border-white"><CardContent>
+              <div className="flex items-center"><Fingerprint className="w-5 h-5 mr-1" /> Biometric Issued</div>
+              <div className="text-2xl font-extrabold">{stats.biometric}</div>
+            </CardContent></Card>
           </div>
 
           {/* Notification Queue */}
-          <div className="bg-white rounded-none shadow border-t border-gray-200 p-4 mt-0">
+          <div className="bg-white rounded-lg shadow p-4 mt-4">
             <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
             {queue.length === 0 ? (
               <div className="text-gray-500">No pending actions. All caught up!</div>
