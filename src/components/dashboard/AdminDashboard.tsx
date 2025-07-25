@@ -179,6 +179,12 @@ export const AdminDashboard = () => {
           ))}
         </div>
         {/* Pending Actions as notifications */}
+        <ul>
+  {pendingSeatBookings.map(b => (
+    <li key={b.id}>{b.user_email} / {b.seat_id} / {b.status}</li>
+  ))}
+</ul>
+
         <Card className="p-4 shadow bg-gray-50">
           <CardContent>
             <div className="font-bold text-lg mb-2">Pending Actions</div>
