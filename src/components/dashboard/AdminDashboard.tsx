@@ -83,21 +83,19 @@ export const AdminDashboard = () => {
     }
   };
 
-  const loadPendingBookings = async () => {
-    try {
-      const { data, error } = await supabase.from('seat_holds').select('id, name, amount, status, created_at');
-      if (error) throw error;
-      const now = new Date();
-      const filtered = (data || []).filter(hold => {
-        const createdAt = new Date(hold.created_at);
-        const diffMinutes = (now - createdAt) / (1000 * 60);
-        return diffMinutes <= seatLockDuration;
-      });
-      setPendingBookings(filtered);
-    } catch (error) {
-      console.error('Failed to load pending bookings:', error.message);
-    }
-  };
+    const loadPendingBookings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('seat_bookings')
+          .select('id, user_email, seat_id, status, created_at, amount')
+          .eq('status', 'pending');
+        if (error) throw error;
+        setPendingBookings(data || []);
+      } catch (error) {
+        console.error('Failed to load pending bookings:', error.message);
+      }
+    };
+
 
   const loadSeatChangeRequests = async () => {
     try {
