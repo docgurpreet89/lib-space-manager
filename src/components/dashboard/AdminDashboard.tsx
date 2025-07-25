@@ -199,9 +199,14 @@ export const AdminDashboard = () => {
 
           {/* Notification Queue */}
           {/* Metro Style Pending Actions */}
+          <br>
+          </br>
+          <br>
+          </br><br>
+          </br>
             <div className="mt-0 mb-0 bg-[#1e3a8a] rounded-none shadow-none p-0 border-t-0 w-full">
               <div className="text-white tracking-widest text-lg font-bold px-6 py-4 border-b border-white select-none" style={{letterSpacing: 2}}>
-                🔔 PENDING ACTIONS
+                PENDING ACTIONS
               </div>
               <div className="divide-y divide-white/30">
                 {queue.length === 0 ? (
