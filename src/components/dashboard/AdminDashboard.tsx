@@ -134,15 +134,14 @@ export const AdminDashboard = () => {
               {item.label}
             </div>
           ))}
-          {/* Extra space to push nav to full height */}
           <div className="flex-1" />
         </nav>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 min-h-screen flex flex-col bg-white">
+      <div className="flex-1 ml-72 min-h-screen flex flex-col bg-white">
         {/* Mobile Header */}
-        <div className="lg:hidden mb-6">
+        <div className="lg:hidden pt-6 pl-6">
           <Button
             onClick={() => setShowSidebar(true)}
             className="bg-blue-800 text-white p-3"
@@ -151,91 +150,101 @@ export const AdminDashboard = () => {
           </Button>
         </div>
 
-        <div>
-
+        {/* Unified Padding on All Sides */}
+        <div className="flex-1 flex flex-col justify-between p-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 w-full">
-            <Card className="rounded-none bg-blue-600 text-white p-6 border border-white"><CardContent>
-              <div>Pending Bookings</div>
-              <div className="text-2xl font-extrabold">{stats.pending}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-red-600 text-white p-6 border border-white"><CardContent>
-              <div>Seat Changes</div>
-              <div className="text-2xl font-extrabold">{stats.seatChanges}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-emerald-600 text-white p-6 border border-white"><CardContent>
-              <div>Expiring Memberships</div>
-              <div className="text-2xl font-extrabold">{stats.expiring}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-amber-500 text-white p-6 border border-white"><CardContent>
-              <div>Total Seats</div>
-              <div className="text-2xl font-extrabold">{stats.totalSeats}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-violet-700 text-white p-6 border border-white"><CardContent>
-              <div>Booked</div>
-              <div className="text-2xl font-extrabold">{stats.booked}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-orange-600 text-white p-6 border border-white"><CardContent>
-              <div>On Hold</div>
-              <div className="text-2xl font-extrabold">{stats.held}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-cyan-600 text-white p-6 border border-white"><CardContent>
-              <div>Available</div>
-              <div className="text-2xl font-extrabold">{stats.available}</div>
-            </CardContent></Card>
-            <Card className="rounded-none bg-slate-900 text-white p-6 border border-white"><CardContent>
-              <div className="flex items-center"><Fingerprint className="w-5 h-5 mr-1" /> Biometric Issued</div>
-              <div className="text-2xl font-extrabold">{stats.biometric}</div>
-            </CardContent></Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 w-full h-full gap-6">
+            <Card className="rounded-none bg-blue-600 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Pending Bookings</div>
+                <div className="text-2xl font-extrabold">{stats.pending}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-red-600 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Seat Changes</div>
+                <div className="text-2xl font-extrabold">{stats.seatChanges}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-emerald-600 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Expiring Memberships</div>
+                <div className="text-2xl font-extrabold">{stats.expiring}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-amber-500 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Total Seats</div>
+                <div className="text-2xl font-extrabold">{stats.totalSeats}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-violet-700 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Booked</div>
+                <div className="text-2xl font-extrabold">{stats.booked}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-orange-600 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>On Hold</div>
+                <div className="text-2xl font-extrabold">{stats.held}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-cyan-600 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div>Available</div>
+                <div className="text-2xl font-extrabold">{stats.available}</div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-none bg-slate-900 text-white border-white min-h-[130px] flex flex-col justify-center">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Fingerprint className="w-5 h-5 mr-1" /> Biometric Issued
+                </div>
+                <div className="text-2xl font-extrabold">{stats.biometric}</div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Notification Queue */}
           {/* Metro Style Pending Actions */}
-          <br>
-          </br>
-          <br>
-          </br><br>
-          </br>
-            <div className="mt-0 mb-0 bg-[#A9A9A9] rounded-none shadow-none p-0 border-t-0 w-full">
-              <div className="text-white tracking-widest text-lg font-bold px-6 py-4 border-b border-white select-none" style={{letterSpacing: 2}}>
-                PENDING ACTIONS
-              </div>
-              <div className="divide-y divide-white/30">
-                {queue.length === 0 ? (
-                  <div className="text-white text-center py-8 font-medium opacity-80">
-                    No pending actions.<br/>ALL CAUGHT UP!
-                  </div>
-                ) : (
-                  queue.map(item => (
-                    <div
-                      key={`${item.type}-${item.id}`}
-                      className="flex items-center px-6 py-5 bg-[#1e3a8a] hover:bg-[#172554] cursor-pointer transition-colors group"
-                      onClick={() => handleActionClick(item)}
-                      style={{minHeight: '64px'}}
-                    >
-                      {/* Left Accent Bar */}
-                      <div className="w-2 h-10 bg-[#38bdf8] mr-4 rounded"></div>
-                      <div className="flex-1">
-                        <div className="text-white font-bold text-base leading-tight group-hover:underline" style={{fontSize:18}}>
-                          {item.label}
-                        </div>
-                        <div className="text-xs text-[#93c5fd] mt-1 uppercase tracking-wide font-mono">
-                          {new Date(item.date).toLocaleString()}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="ml-4 rounded-none font-bold bg-[#38bdf8] text-[#1e3a8a] hover:bg-[#0ea5e9] hover:text-white px-5 py-2 uppercase tracking-wider"
-                        variant="ghost"
-                      >
-                        GO
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
+          <div className="mt-8 bg-[#38bdf8] rounded-none shadow-none p-0 border-t-0 w-full">
+            <div className="text-white tracking-widest text-lg font-bold px-6 py-4 border-b border-white select-none" style={{letterSpacing: 2}}>
+              PENDING ACTIONS 12:23
             </div>
-
+            <div className="divide-y divide-white/30">
+              {queue.length === 0 ? (
+                <div className="text-white text-center py-8 font-medium opacity-80">
+                  No pending actions.<br/>ALL CAUGHT UP!
+                </div>
+              ) : (
+                queue.map(item => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="flex items-center px-6 py-5 bg-[#1e3a8a] hover:bg-[#172554] cursor-pointer transition-colors group"
+                    onClick={() => handleActionClick(item)}
+                    style={{minHeight: '64px'}}
+                  >
+                    <div className="w-2 h-10 bg-[#38bdf8] mr-4 rounded"></div>
+                    <div className="flex-1">
+                      <div className="text-white font-bold text-base leading-tight group-hover:underline" style={{fontSize:18}}>
+                        {item.label}
+                      </div>
+                      <div className="text-xs text-[#93c5fd] mt-1 uppercase tracking-wide font-mono">
+                        {new Date(item.date).toLocaleString()}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="ml-4 rounded-none font-bold bg-[#38bdf8] text-[#1e3a8a] hover:bg-[#0ea5e9] hover:text-white px-5 py-2 uppercase tracking-wider"
+                      variant="ghost"
+                    >
+                      GO
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
