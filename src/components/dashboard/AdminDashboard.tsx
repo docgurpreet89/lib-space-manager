@@ -103,7 +103,7 @@ export const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="flex min-h-screen bg-white">
       {/* Sidebar FULL HEIGHT */}
       <div className={`
         flex flex-col w-72 bg-blue-800 text-white
@@ -152,17 +152,9 @@ export const AdminDashboard = () => {
         </div>
 
         <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-2">
-              Admin Dashboard
-            </h2>
-            <p className="text-gray-600">
-              Manage bookings, seat changes, and library settings
-            </p>
-          </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 w-full">
             <Card className="rounded-none bg-blue-600 text-white p-6 border border-white"><CardContent>
               <div>Pending Bookings</div>
               <div className="text-2xl font-extrabold">{stats.pending}</div>
@@ -204,7 +196,7 @@ export const AdminDashboard = () => {
           <br>
           </br><br>
           </br>
-            <div className="mt-0 mb-0 bg-[#000000] rounded-none shadow-none p-0 border-t-0 w-full">
+            <div className="mt-0 mb-0 bg-[#A9A9A9] rounded-none shadow-none p-0 border-t-0 w-full">
               <div className="text-white tracking-widest text-lg font-bold px-6 py-4 border-b border-white select-none" style={{letterSpacing: 2}}>
                 PENDING ACTIONS
               </div>
