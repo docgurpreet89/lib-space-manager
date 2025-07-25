@@ -1,22 +1,151 @@
-
-import { useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { PendingBookings } from '@/components/admin/PendingBookings';
-import { SeatChangeRequests } from '@/components/admin/SeatChangeRequests';
-import { LibrarySettings } from '@/components/admin/LibrarySettings';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Users, Settings, Calendar } from 'lucide-react';
+import { Menu, X, Users, Settings, Calendar, ClipboardList, Repeat, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
-interface AdminDashboardProps {
-  user: User;
-}
-
-export const AdminDashboard = ({ user }: AdminDashboardProps) => {
+export const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
+  const [expiringMembers, setExpiringMembers] = useState([]);
+  const [seatMap, setSeatMap] = useState({});
+  const [queue, setQueue] = useState([]);
+  const [stats, setStats] = useState({
+    pending: 0,
+    seatChanges: 0,
+    expiring: 0,
+    totalSeats: 0,
+    booked: 0,
+    held: 0,
+    available: 0,
+    biometric: 0
+  });
+
+  // Load initial data
+  useEffect(() => {
+    loadBookings();
+    loadSeatChangeRequests();
+    loadExpiringMembers();
+    loadSeatMap();
+    // Stats depends on expiringMembers, so load later
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [expiringMembers]);
+
+  const loadBookings = async () => {
+    const { data, error } = await supabase.from('seat_bookings').select('*');
+    if (!error) setBookings(data || []);
+  };
+
+  const loadSeatChangeRequests = async () => {
+    const { data, error } = await supabase
+      .from('seat_change_requests')
+      .select('*')
+      .eq('status', 'pending');
+    if (!error) setSeatChangeRequests(data || []);
+  };
+
+  const loadExpiringMembers = async () => {
+    const { data, error } = await supabase.rpc('get_soon_expiring_memberships');
+    if (!error) setExpiringMembers(data || []);
+  };
+
+  const loadSeatMap = async () => {
+    const { data, error } = await supabase
+      .from('seats')
+      .select('seat_id, seat_label');
+    if (!error && data) {
+      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {});
+      setSeatMap(map);
+    }
+  };
+
+  const loadStats = async () => {
+    const { count: pending } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { count: seatChanges } = await supabase
+      .from('seat_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { data: seats } = await supabase.from('seats').select('seat_id');
+    const { count: booked } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'approved');
+    const { data: held } = await supabase.from('seat_holds').select('seat_id');
+    const { count: biometric } = await supabase
+      .from('biometric_cards')
+      .select('*', { count: 'exact', head: true });
+
+    setStats({
+      pending: pending || 0,
+      seatChanges: seatChanges || 0,
+      expiring: expiringMembers.length,
+      totalSeats: seats?.length || 0,
+      booked: booked || 0,
+      held: held?.length || 0,
+      available: (seats?.length || 0) - (booked || 0) - (held?.length || 0),
+      biometric: biometric || 0
+    });
+  };
+
+  // Build notification queue
+  useEffect(() => {
+    const merged = [
+      // Pending Booking Requests with seat label
+      ...bookings
+        .filter(b => b.status === 'pending')
+        .map(b => {
+          const seatNum = seatMap[b.seat_id] || b.seat_id;
+          return {
+            id: b.id,
+            type: 'booking',
+            label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
+            date: b.from_time || b.created_at
+          };
+        }),
+      // Seat Change Requests
+      ...seatChangeRequests.map(r => ({
+        id: r.id,
+        type: 'seat_change',
+        label: `Seat Change Request: ${r.user_name}`,
+        date: r.created_at
+      })),
+      // Expiring Memberships
+      ...expiringMembers.map(m => ({
+        id: m.id || m.user_id,
+        type: 'expiry',
+        label: `Expiring Membership: ${m.name}`,
+        date: m.valid_till
+      }))
+    ];
+    setQueue(merged);
+  }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
+
+  const handleActionClick = item => {
+    switch (item.type) {
+      case 'booking':
+        navigate('/admin/pending-bookings');
+        break;
+      case 'seat_change':
+        navigate('/admin/seat-changes');
+        break;
+      case 'expiry':
+        navigate('/admin/expiring-memberships');
+        break;
+    }
+    setQueue(q => q.filter(i => i.id !== item.id));
+  };
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-white flex">
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div 
@@ -24,42 +153,41 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
           onClick={() => setShowSidebar(false)}
         />
       )}
-      
+
       {/* Sidebar */}
       <div className={`
         fixed top-0 left-0 h-full w-80 app-card border-r border-[#E0E0E0] z-50 transform transition-transform duration-300 ease-in-out
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:z-auto
+        lg:translate-x-0 lg:static lg:z-auto bg-blue-800 text-white
       `}>
         <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-[#333333]">Admin Panel</h2>
+          <h2 className="text-xl font-semibold">Admin Panel</h2>
           <Button
             onClick={() => setShowSidebar(false)}
             className="lg:hidden p-2 hover:bg-[#F5F5F5] rounded-lg"
             variant="ghost"
           >
-            <X size={20} className="text-[#666666]" />
+            <X size={20} />
           </Button>
         </div>
-        
         <nav className="p-4 space-y-2">
-          <a href="#bookings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+          <div onClick={() => navigate('/admin/pending-bookings')} className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-700 cursor-pointer">
             <Calendar size={20} />
             Pending Bookings
-          </a>
-          <a href="#changes" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+          </div>
+          <div onClick={() => navigate('/admin/seat-changes')} className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-700 cursor-pointer">
             <Users size={20} />
             Seat Changes
-          </a>
-          <a href="#settings" className="flex items-center gap-3 p-3 rounded-lg text-[#666666] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors">
+          </div>
+          <div onClick={() => navigate('/admin/settings')} className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-700 cursor-pointer">
             <Settings size={20} />
             Settings
-          </a>
+          </div>
         </nav>
       </div>
-      
+
       {/* Main Content */}
-      <div className="lg:ml-80 p-4">
+      <div className="flex-1 p-6 space-y-6 lg:ml-80">
         {/* Mobile Header */}
         <div className="lg:hidden mb-6">
           <Button
@@ -69,10 +197,10 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
             <Menu size={20} />
           </Button>
         </div>
-        
+
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-[#333333] mb-2">
+            <h2 className="text-3xl font-bold mb-2">
               Admin Dashboard
             </h2>
             <p className="text-[#666666]">
@@ -80,40 +208,41 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </p>
           </div>
 
-          <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl">
-              <TabsTrigger 
-                value="bookings" 
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Pending Bookings
-              </TabsTrigger>
-              <TabsTrigger 
-                value="changes" 
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Seat Changes
-              </TabsTrigger>
-              <TabsTrigger 
-                value="settings" 
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Settings
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="bookings" className="mt-6">
-              <PendingBookings />
-            </TabsContent>
-            
-            <TabsContent value="changes" className="mt-6">
-              <SeatChangeRequests />
-            </TabsContent>
-            
-            <TabsContent value="settings" className="mt-6">
-              <LibrarySettings />
-            </TabsContent>
-          </Tabs>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
+            <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
+            <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
+            <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
+            <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
+            <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
+            <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
+            <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
+          </div>
+
+          {/* Notification Queue */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="font-bold text-lg mb-3>Pending Actions 11:40</div>
+            {queue.length === 0 ? (
+              <div className="text-gray-500">No pending actions. All caught up!</div>
+            ) : (
+              <ul className="space-y-2">
+                {queue.map(item => (
+                  <li
+                    key={`${item.type}-${item.id}`}
+                    className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleActionClick(item)}
+                  >
+                    <div>
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
+                    </div>
+                    <Button size="sm" variant="ghost">Go</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
