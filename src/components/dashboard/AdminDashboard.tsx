@@ -1,93 +1,215 @@
-import { useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { PendingBookings } from '@/components/admin/PendingBookings';
-import { SeatChangeRequests } from '@/components/admin/SeatChangeRequests';
-import { LibrarySettings } from '@/components/admin/LibrarySettings';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Menu, X, Users, Settings, Calendar, ClipboardList, Repeat,
-  FileText, Bell, Fingerprint, IdCard
+  Menu, X, Users, Settings, Calendar,
+  ClipboardList, Repeat, FileText, Bell, Fingerprint, IdCard
 } from 'lucide-react';
 
-interface AdminDashboardProps {
-  user: User;
-}
-
-export const AdminDashboard = ({ user }: AdminDashboardProps) => {
+export const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
+  const [expiringMembers, setExpiringMembers] = useState([]);
+  const [seatMap, setSeatMap] = useState({});
+  const [queue, setQueue] = useState([]);
+  const [stats, setStats] = useState({
+    pending: 0,
+    seatChanges: 0,
+    expiring: 0,
+    totalSeats: 0,
+    booked: 0,
+    held: 0,
+    available: 0,
+    biometric: 0
+  });
 
-  // You can later add router logic for navigation if needed
+  // Load data on mount
+  useEffect(() => {
+    loadBookings();
+    loadSeatChangeRequests();
+    loadExpiringMembers();
+    loadSeatMap();
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [expiringMembers]);
+
+  const loadBookings = async () => {
+    const { data, error } = await supabase.from('seat_bookings').select('*');
+    if (!error) setBookings(data || []);
+  };
+
+  const loadSeatChangeRequests = async () => {
+    const { data, error } = await supabase
+      .from('seat_change_requests')
+      .select('*')
+      .eq('status', 'pending');
+    if (!error) setSeatChangeRequests(data || []);
+  };
+
+  const loadExpiringMembers = async () => {
+    const { data, error } = await supabase.rpc('get_soon_expiring_memberships');
+    if (!error) setExpiringMembers(data || []);
+  };
+
+  const loadSeatMap = async () => {
+    const { data, error } = await supabase
+      .from('seats')
+      .select('seat_id, seat_label');
+    if (!error && data) {
+      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {});
+      setSeatMap(map);
+    }
+  };
+
+  const loadStats = async () => {
+    const { count: pending } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { count: seatChanges } = await supabase
+      .from('seat_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { data: seats } = await supabase.from('seats').select('seat_id');
+    const { count: booked } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'approved');
+    const { data: held } = await supabase.from('seat_holds').select('seat_id');
+    const { count: biometric } = await supabase
+      .from('biometric_cards')
+      .select('*', { count: 'exact', head: true });
+
+    setStats({
+      pending: pending || 0,
+      seatChanges: seatChanges || 0,
+      expiring: expiringMembers.length,
+      totalSeats: seats?.length || 0,
+      booked: booked || 0,
+      held: held?.length || 0,
+      available: (seats?.length || 0) - (booked || 0) - (held?.length || 0),
+      biometric: biometric || 0
+    });
+  };
+
+  // Build notification queue (merged actions)
+  useEffect(() => {
+    const merged = [
+      // Pending Booking Requests with seat label
+      ...bookings
+        .filter(b => b.status === 'pending')
+        .map(b => {
+          const seatNum = seatMap[b.seat_id] || b.seat_id;
+          return {
+            id: b.id,
+            type: 'booking',
+            label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
+            date: b.from_time || b.created_at
+          };
+        }),
+      // Seat Change Requests
+      ...seatChangeRequests.map(r => ({
+        id: r.id,
+        type: 'seat_change',
+        label: `Seat Change Request: ${r.user_name}`,
+        date: r.created_at
+      })),
+      // Expiring Memberships
+      ...expiringMembers.map(m => ({
+        id: m.id || m.user_id,
+        type: 'expiry',
+        label: `Expiring Membership: ${m.name}`,
+        date: m.valid_till
+      }))
+    ];
+    setQueue(merged);
+  }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
+
+  const handleActionClick = item => {
+    switch (item.type) {
+      case 'booking':
+        navigate('/admin/pending-bookings');
+        break;
+      case 'seat_change':
+        navigate('/admin/seat-changes');
+        break;
+      case 'expiry':
+        navigate('/admin/expiring-memberships');
+        break;
+      default:
+        break;
+    }
+    setQueue(q => q.filter(i => i.id !== item.id));
+  };
+
+  // Full navigation config
+  const navItems = [
+    { label: 'Pending Bookings', icon: ClipboardList, path: '/admin/pending-bookings' },
+    { label: 'Seat Change Requests', icon: Repeat, path: '/admin/seat-changes' },
+    { label: 'All Users', icon: Users, path: '/admin/users' },
+    { label: 'All Transactions', icon: FileText, path: '/admin/transactions' },
+    { label: 'Notice Management', icon: Bell, path: '/admin/notices' },
+    { label: 'Expiring Memberships', icon: FileText, path: '/admin/expiring-memberships' },
+    { label: 'Biometric Enrollments', icon: IdCard, path: '/admin/biometric-enrollments' }
+  ];
 
   return (
-    <div className="min-h-screen h-screen flex bg-white">
-      {/* Sidebar */}
-      <div
-        className={`
-          flex flex-col
-          fixed top-0 left-0 right-10
-          h-screen w-80
-          border-r border-[#E0E0E0]
-          z-50
-          bg-blue-900 text-white
-          transition-transform duration-300 ease-in-out
-          ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static lg:z-auto
-        `}
-      >
-        {/* Header */}
-        <div className="p-6 border-b border-[#253356] flex items-center justify-between bg-blue-900">
+    <div className="min-h-screen bg-white flex">
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+
+      {/* Sidebar - now w-64 and full height */}
+      <div className={`
+        fixed top-0 left-0 h-full w-64 border-r border-[#E0E0E0] z-50
+        transform transition-transform duration-300 ease-in-out
+        ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:static lg:z-auto
+        bg-blue-900 text-white flex flex-col
+      `}>
+        <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
           <h2 className="text-xl font-semibold">Admin Panel</h2>
           <Button
             onClick={() => setShowSidebar(false)}
-            className="lg:hidden p-2 hover:bg-blue-700 rounded-lg"
+            className="lg:hidden p-2 hover:bg-[#3B4CCA] rounded-lg"
             variant="ghost"
           >
-            <X size={20} className="text-white" />
+            <X size={20} />
           </Button>
         </div>
-        {/* Navigation */}
-        <nav className="flex-1 p-0 flex flex-col">
-          <a href="#bookings" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <ClipboardList size={20} />
-            Pending Bookings
-          </a>
-          <a href="#changes" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Repeat size={20} />
-            Seat Change Requests
-          </a>
-          <a href="#users" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Users size={20} />
-            All Users
-          </a>
-          <a href="#transactions" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <FileText size={20} />
-            All Transactions
-          </a>
-          <a href="#notices" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Bell size={20} />
-            Notice Management
-          </a>
-          <a href="#expiring" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <Calendar size={20} />
-            Expiring Memberships
-          </a>
-          <a href="#biometric" className="flex items-center gap-3 p-4 border-b border-blue-800 hover:bg-blue-800 transition">
-            <IdCard size={20} />
-            Biometric Enrollments
-          </a>
-          {/* Spacer fills the rest, makes menu touch bottom */}
-          <div className="flex-1" />
+        <nav className="flex-1 flex flex-col justify-between">
+          <div className="p-4 space-y-1">
+            {navItems.map(item => (
+              <div
+                key={item.label}
+                onClick={() => navigate(item.path)}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+              >
+                <item.icon size={20} />
+                {item.label}
+              </div>
+            ))}
+          </div>
         </nav>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-80 p-6">
+      <div className="flex-1 lg:ml-64 p-4">
         {/* Mobile Header */}
         <div className="lg:hidden mb-6">
           <Button
             onClick={() => setShowSidebar(true)}
-            className="paytm-button-secondary p-3"
+            className="bg-blue-900 text-white p-3"
           >
             <Menu size={20} />
           </Button>
@@ -95,7 +217,7 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-[#333333] mb-2">
+            <h2 className="text-3xl font-bold mb-2">
               Admin Dashboard
             </h2>
             <p className="text-[#666666]">
@@ -103,39 +225,83 @@ export const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </p>
           </div>
 
-          {/* Example Tabs for some sections */}
-          <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl">
-              <TabsTrigger
-                value="bookings"
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Pending Bookings
-              </TabsTrigger>
-              <TabsTrigger
-                value="changes"
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Seat Changes
-              </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="data-[state=active]:bg-[#00B9F1] data-[state=active]:text-white text-[#666666] font-medium rounded-lg"
-              >
-                Settings
-              </TabsTrigger>
-            </TabsList>
+          {/* Statistics Cards (sharp edges, vibrant colors, no gaps) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 overflow-hidden">
+            <Card className="bg-blue-600 text-white rounded-none border-0">
+              <CardContent>
+                <div>Pending Bookings</div>
+                <div className="text-xl font-bold">{stats.pending}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-600 text-white rounded-none border-0">
+              <CardContent>
+                <div>Seat Changes</div>
+                <div className="text-xl font-bold">{stats.seatChanges}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-amber-500 text-white rounded-none border-0">
+              <CardContent>
+                <div>Expiring Memberships</div>
+                <div className="text-xl font-bold">{stats.expiring}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-800 text-white rounded-none border-0">
+              <CardContent>
+                <div>Total Seats</div>
+                <div className="text-xl font-bold">{stats.totalSeats}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-violet-700 text-white rounded-none border-0">
+              <CardContent>
+                <div>Booked</div>
+                <div className="text-xl font-bold">{stats.booked}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-orange-700 text-white rounded-none border-0">
+              <CardContent>
+                <div>On Hold</div>
+                <div className="text-xl font-bold">{stats.held}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-teal-600 text-white rounded-none border-0">
+              <CardContent>
+                <div>Available</div>
+                <div className="text-xl font-bold">{stats.available}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-rose-600 text-white rounded-none border-0">
+              <CardContent>
+                <div className="flex items-center">
+                  <Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued
+                </div>
+                <div className="text-xl font-bold">{stats.biometric}</div>
+              </CardContent>
+            </Card>
+          </div>
 
-            <TabsContent value="bookings" className="mt-6">
-              <PendingBookings />
-            </TabsContent>
-            <TabsContent value="changes" className="mt-6">
-              <SeatChangeRequests />
-            </TabsContent>
-            <TabsContent value="settings" className="mt-6">
-              <LibrarySettings />
-            </TabsContent>
-          </Tabs>
+          {/* Notification Queue */}
+          <div className="bg-white rounded-lg shadow p-4 mt-2">
+            <div className="font-bold text-lg mb-3">Pending Actions 12:40</div>
+            {queue.length === 0 ? (
+              <div className="text-gray-500">No pending actions. All caught up!</div>
+            ) : (
+              <ul className="space-y-2">
+                {queue.map(item => (
+                  <li
+                    key={`${item.type}-${item.id}`}
+                    className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleActionClick(item)}
+                  >
+                    <div>
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
+                    </div>
+                    <Button size="sm" variant="ghost">Go</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
