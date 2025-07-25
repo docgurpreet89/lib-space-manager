@@ -24,7 +24,7 @@ export const AdminDashboard = () => {
     biometric: 0
   });
 
-  // Load initial data
+  // Load data on mount
   useEffect(() => {
     loadBookings();
     loadSeatChangeRequests();
@@ -140,6 +140,8 @@ export const AdminDashboard = () => {
       case 'expiry':
         navigate('/admin/expiring-memberships');
         break;
+      default:
+        break;
     }
     setQueue(q => q.filter(i => i.id !== item.id));
   };
@@ -156,7 +158,7 @@ export const AdminDashboard = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-80 app-card border-r border-[#E0E0E0] z-50 transform transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 h-full w-80 border-r border-[#E0E0E0] z-50 transform transition-transform duration-300 ease-in-out
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:z-auto bg-blue-800 text-white
       `}>
@@ -222,7 +224,7 @@ export const AdminDashboard = () => {
 
           {/* Notification Queue */}
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="font-bold text-lg mb-3>Pending Actions 11:40</div>
+            <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
             {queue.length === 0 ? (
               <div className="text-gray-500">No pending actions. All caught up!</div>
             ) : (
