@@ -1,202 +1,92 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import { User } from '@supabase/supabase-js';
+import { PendingBookings } from '@/components/admin/PendingBookings';
+import { SeatChangeRequests } from '@/components/admin/SeatChangeRequests';
+import { LibrarySettings } from '@/components/admin/LibrarySettings';
+import { AllUsersPage } from '@/components/admin/AllUsersPage';
+import { AllTransactionsPage } from '@/components/admin/AllTransactionsPage';
+import { NoticeManagement } from '@/components/admin/NoticeManagement';
+import { SoonExpiringMemberships } from '@/components/admin/SoonExpiringMemberships';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
+import { Menu, X, Users, Settings, Calendar, Bell, CreditCard, Clock } from 'lucide-react';
 
-export const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const [bookings, setBookings] = useState([]);
-  const [seatChangeRequests, setSeatChangeRequests] = useState([]);
-  const [expiringMembers, setExpiringMembers] = useState([]);
-  const [seatMap, setSeatMap] = useState({});
-  const [stats, setStats] = useState({
-    pending: 0,
-    seatChanges: 0,
-    expiring: 0,
-    totalSeats: 0,
-    booked: 0,
-    held: 0,
-    available: 0,
-    biometric: 0
-  });
+interface AdminDashboardProps {
+  user: User;
+}
 
-  // Load initial data
-  useEffect(() => {
-    loadBookings();
-    loadSeatChangeRequests();
-    loadExpiringMembers();
-    loadSeatMap();
-    loadStats();
-  }, []);
+export const AdminDashboard = ({ user }: AdminDashboardProps) => {
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [activePage, setActivePage] = useState('pendingBookings');
 
-  const loadBookings = async () => {
-    const { data, error } = await supabase.from('seat_bookings').select('*');
-    if (!error) setBookings(data || []);
-  };
-
-  const loadSeatChangeRequests = async () => {
-    const { data, error } = await supabase
-      .from('seat_change_requests')
-      .select('*')
-      .eq('status', 'pending');
-    if (!error) setSeatChangeRequests(data || []);
-  };
-
-  const loadExpiringMembers = async () => {
-    const { data, error } = await supabase.rpc('get_soon_expiring_memberships');
-    if (!error) setExpiringMembers(data || []);
-  };
-
-  const loadSeatMap = async () => {
-    // Fetch seat_id and actual seat label
-    const { data, error } = await supabase
-      .from('seats')
-      .select('seat_id, seat_label');
-    if (!error && data) {
-      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {});
-      setSeatMap(map);
-    }
-  };
-
-  const loadStats = async () => {
-    const { count: pending } = await supabase
-      .from('seat_bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-    const { count: seatChanges } = await supabase
-      .from('seat_change_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-    const { data: seats } = await supabase.from('seats').select('seat_id');
-    const { count: booked } = await supabase
-      .from('seat_bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'approved');
-    const { data: held } = await supabase.from('seat_holds').select('seat_id');
-    const { count: biometric } = await supabase
-      .from('biometric_cards')
-      .select('*', { count: 'exact', head: true });
-
-    setStats({
-      pending: pending || 0,
-      seatChanges: seatChanges || 0,
-      expiring: expiringMembers.length,
-      totalSeats: seats?.length || 0,
-      booked: booked || 0,
-      held: held?.length || 0,
-      available: (seats?.length || 0) - (booked || 0) - (held?.length || 0),
-      biometric: biometric || 0
-    });
-  };
-
-  // Build notification queue
-  const [queue, setQueue] = useState([]);
-  useEffect(() => {
-    const merged = [
-      // Pending Booking Requests with seat label
-      ...bookings
-        .filter(b => b.status === 'pending')
-        .map(b => {
-          const seatNum = seatMap[b.seat_id] || b.seat_id;
-          return {
-            id: b.id,
-            type: 'booking',
-            label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
-            date: b.from_time || b.created_at
-          };
-        }),
-      // Seat Change Requests
-      ...seatChangeRequests.map(r => ({
-        id: r.id,
-        type: 'seat_change',
-        label: `Seat Change Request: ${r.user_name}`,
-        date: r.created_at
-      })),
-      // Expiring Memberships
-      ...expiringMembers.map(m => ({
-        id: m.id || m.user_id,
-        type: 'expiry',
-        label: `Expiring Membership: ${m.name}`,
-        date: m.valid_till
-      }))
-    ];
-    setQueue(merged);
-  }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
-
-  const handleActionClick = item => {
-    switch (item.type) {
-      case 'booking':
-        navigate('/admin/pending-bookings');
-        break;
-      case 'seat_change':
-        navigate('/admin/seat-changes');
-        break;
-      case 'expiry':
-        navigate('/admin/expiring-memberships');
-        break;
-    }
-    setQueue(q => q.filter(i => i.id !== item.id));
-  };
+  const menuItems = [
+    { key: 'pendingBookings', label: 'Pending Bookings', icon: <Calendar size={18} /> },
+    { key: 'seatChanges', label: 'Seat Changes', icon: <Clock size={18} /> },
+    { key: 'transactions', label: 'Transactions', icon: <CreditCard size={18} /> },
+    { key: 'users', label: 'All Users', icon: <Users size={18} /> },
+    { key: 'soonExpiring', label: 'Soon Expiring Memberships', icon: <Clock size={18} /> },
+    { key: 'notices', label: 'Manage Notices', icon: <Bell size={18} /> },
+    { key: 'settings', label: 'Settings', icon: <Settings size={18} /> }
+  ];
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#F5F7FA] flex relative">
       {/* Sidebar */}
-      <div className="w-64 bg-blue-800 text-white p-4 space-y-2">
-        <div className="text-2xl font-bold mb-4">Admin</div>
-        {[
-          { label: 'Pending Bookings', icon: ClipboardList },
-          { label: 'Seat Change Requests', icon: Repeat },
-          { label: 'All Users', icon: Users },
-          { label: 'All Transactions', icon: FileText },
-          { label: 'Notice Management', icon: Bell },
-          { label: 'Expiring Memberships', icon: FileText },
-          { label: 'Biometric Enrollments', icon: IdCard }
-        ].map(item => (
-          <div key={item.label} className="flex items-center p-2 rounded hover:bg-blue-700 cursor-pointer">
-            <item.icon className="w-4 h-4 mr-2" /> {item.label}
-          </div>
-        ))}
+      <div
+        className={`fixed lg:static top-0 left-0 h-full bg-[#00B9F1] text-white w-64 transform ${
+          showSidebar ? 'translate-x-0' : '-translate-x-full'
+        } transition-transform duration-300 ease-in-out z-50`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-blue-300">
+          <h2 className="text-lg font-bold">Admin Dashboard</h2>
+          <Button
+            variant="ghost"
+            className="lg:hidden text-white"
+            onClick={() => setShowSidebar(false)}
+          >
+            <X size={20} />
+          </Button>
+        </div>
+        <nav className="p-2 space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => {
+                setActivePage(item.key);
+                setShowSidebar(false);
+              }}
+              className={`w-full flex items-center gap-2 p-3 rounded-md text-left ${
+                activePage === item.key
+                  ? 'bg-white text-[#00B9F1] font-bold'
+                  : 'hover:bg-blue-100 text-white'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
-          <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
-          <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
-          <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
-          <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
-          <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
-          <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
-          <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
+      {/* Main content */}
+      <div className="flex-1 p-4 lg:ml-64">
+        <div className="flex justify-between items-center mb-4 lg:hidden">
+          <Button
+            className="paytm-button-secondary p-2"
+            onClick={() => setShowSidebar(true)}
+          >
+            <Menu size={20} />
+          </Button>
+          <span className="text-[#00B9F1] font-bold">Admin Dashboard</span>
         </div>
 
-        {/* Pending Actions Queue */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:21</div>
-          {queue.length === 0 ? (
-            <div className="text-gray-500">No pending actions. All caught up!</div>
-          ) : (
-            <ul className="space-y-2">
-              {queue.map(item => (
-                <li
-                  key={`${item.type}-${item.id}`}
-                  className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleActionClick(item)}
-                >
-                  <div>
-                    <div className="font-medium">{item.label}</div>
-                    <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
-                  </div>
-                  <Button size="sm" variant="ghost">Go</Button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="bg-white shadow rounded-lg p-4">
+          {activePage === 'pendingBookings' && <PendingBookings />}
+          {activePage === 'seatChanges' && <SeatChangeRequests />}
+          {activePage === 'transactions' && <AllTransactionsPage />}
+          {activePage === 'users' && <AllUsersPage />}
+          {activePage === 'soonExpiring' && <SoonExpiringMemberships />}
+          {activePage === 'notices' && <NoticeManagement />}
+          {activePage === 'settings' && <LibrarySettings />}
         </div>
       </div>
     </div>
