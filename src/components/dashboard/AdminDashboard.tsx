@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
+
 export const AdminDashboard = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
@@ -61,6 +62,14 @@ export const AdminDashboard = () => {
     }
   };
 
+  const colorClasses = [
+    "bg-blue-100 text-blue-800 border-blue-300",
+    "bg-yellow-100 text-yellow-800 border-yellow-300",
+    "bg-pink-100 text-pink-800 border-pink-300",
+    "bg-green-100 text-green-800 border-green-300",
+    "bg-purple-100 text-purple-800 border-purple-300",
+    "bg-orange-100 text-orange-800 border-orange-300"
+  ];
   const loadStats = async () => {
     const { count: pending } = await supabase
       .from('seat_bookings')
@@ -102,7 +111,7 @@ export const AdminDashboard = () => {
         .map(b => {
           const seatNum = seatMap[b.seat_id] || b.seat_id;
           return {
-            id: b.id,
+            id: b.booking_id,
             type: 'booking',
             label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
             date: b.from_time || b.created_at
@@ -165,7 +174,18 @@ export const AdminDashboard = () => {
       <div className="flex-1 p-6 space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
+            <Card
+              className="bg-pink-100 p-4 cursor-pointer hover:shadow-lg hover:bg-pink-200 transition"
+              onClick={() => navigate("/admin/pending-bookings")}
+              role="button"
+              tabIndex={0}
+            >
+              <CardContent>
+                <div>Pending Bookings</div>
+                <div className="text-xl font-bold">{stats.pending}</div>
+              </CardContent>
+            </Card>
+
           <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
           <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
           <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
@@ -176,28 +196,39 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Pending Actions Queue */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:21</div>
-          {queue.length === 0 ? (
-            <div className="text-gray-500">No pending actions. All caught up!</div>
-          ) : (
-            <ul className="space-y-2">
-              {queue.map(item => (
-                <li
-                  key={`${item.type}-${item.id}`}
-                  className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleActionClick(item)}
-                >
-                  <div>
-                    <div className="font-medium">{item.label}</div>
-                    <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
-                  </div>
-                  <Button size="sm" variant="ghost">Go</Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Card className="p-6 shadow bg-white">
+          <CardContent>
+            <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
+            <div className="flex flex-col gap-0">
+              {queue.length === 0 ? (
+                <div className="text-gray-500">No pending actions. All caught up!</div>
+              ) : (
+                queue.map((item, idx) => {
+                  const colorStyle = colorClasses[idx % colorClasses.length];
+                  return (
+                    <div
+                      key={item.id ? `${item.type}-${item.id}` : `${item.type}-row-${idx}`}
+                      className={`w-full min-w-0 mb-3 rounded-xl px-6 py-4 border shadow-sm flex items-center justify-between ${colorStyle}`}
+                    >
+                      <div>
+                        <div className="font-semibold mb-1">{item.label}</div>
+                        <div className="text-xs mb-2">{new Date(item.date).toLocaleString()}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleActionClick(item)}
+                      >
+                        Go
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
