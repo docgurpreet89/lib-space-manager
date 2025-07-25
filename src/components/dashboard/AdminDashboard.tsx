@@ -24,12 +24,12 @@ export const AdminDashboard = () => {
   // COLORS for stat cards
   const statCardColors = [
     'bg-blue-700 text-white',
-    'bg-green-600 text-white',
-    'bg-violet-700 text-white',
-    'bg-yellow-600 text-white',
+    'bg-red-600 text-white',
     'bg-emerald-700 text-white',
+    'bg-yellow-600 text-white',
+    'bg-violet-700 text-white',
     'bg-orange-600 text-white',
-    'bg-red-700 text-white',
+    'bg-green-700 text-white',
     'bg-gray-900 text-white'
   ];
 
