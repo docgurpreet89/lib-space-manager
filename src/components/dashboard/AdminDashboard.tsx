@@ -20,7 +20,7 @@ export const AdminDashboard = () => {
     pending: 0, seatChanges: 0, expiring: 0,
     totalSeats: 0, booked: 0, held: 0, available: 0, biometric: 0
   });
-
+ 
   useEffect(() => {
     loadBookings();
     loadSeatChangeRequests();
