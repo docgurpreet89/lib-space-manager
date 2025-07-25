@@ -198,28 +198,47 @@ export const AdminDashboard = () => {
           </div>
 
           {/* Notification Queue */}
-          <div className="bg-white rounded-lg shadow p-4 mt-4">
-            <div className="font-bold text-lg mb-3">🔔 Pending Actions</div>
-            {queue.length === 0 ? (
-              <div className="text-gray-500">No pending actions. All caught up!</div>
-            ) : (
-              <ul className="space-y-2">
-                {queue.map(item => (
-                  <li
-                    key={`${item.type}-${item.id}`}
-                    className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleActionClick(item)}
-                  >
-                    <div>
-                      <div className="font-medium">{item.label}</div>
-                      <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
+          {/* Metro Style Pending Actions */}
+            <div className="mt-0 mb-0 bg-[#1e3a8a] rounded-none shadow-none p-0 border-t-0 w-full">
+              <div className="text-white tracking-widest text-lg font-bold px-6 py-4 border-b border-white select-none" style={{letterSpacing: 2}}>
+                🔔 PENDING ACTIONS
+              </div>
+              <div className="divide-y divide-white/30">
+                {queue.length === 0 ? (
+                  <div className="text-white text-center py-8 font-medium opacity-80">
+                    No pending actions.<br/>ALL CAUGHT UP!
+                  </div>
+                ) : (
+                  queue.map(item => (
+                    <div
+                      key={`${item.type}-${item.id}`}
+                      className="flex items-center px-6 py-5 bg-[#1e3a8a] hover:bg-[#172554] cursor-pointer transition-colors group"
+                      onClick={() => handleActionClick(item)}
+                      style={{minHeight: '64px'}}
+                    >
+                      {/* Left Accent Bar */}
+                      <div className="w-2 h-10 bg-[#38bdf8] mr-4 rounded"></div>
+                      <div className="flex-1">
+                        <div className="text-white font-bold text-base leading-tight group-hover:underline" style={{fontSize:18}}>
+                          {item.label}
+                        </div>
+                        <div className="text-xs text-[#93c5fd] mt-1 uppercase tracking-wide font-mono">
+                          {new Date(item.date).toLocaleString()}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="ml-4 rounded-none font-bold bg-[#38bdf8] text-[#1e3a8a] hover:bg-[#0ea5e9] hover:text-white px-5 py-2 uppercase tracking-wider"
+                        variant="ghost"
+                      >
+                        GO
+                      </Button>
                     </div>
-                    <Button size="sm" variant="ghost">Go</Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                  ))
+                )}
+              </div>
+            </div>
+
         </div>
       </div>
     </div>
