@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ClipboardList, Repeat, Users, FileText, Bell, Fingerprint, IdCard } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  // DATA STATES
-  const [pendingSeatBookings, setPendingSeatBookings] = useState([]);
+  const navigate = useNavigate();
+  const [bookings, setBookings] = useState([]);
   const [seatChangeRequests, setSeatChangeRequests] = useState([]);
   const [expiringMembers, setExpiringMembers] = useState([]);
-
+  const [seatMap, setSeatMap] = useState({});
   const [stats, setStats] = useState({
     pending: 0,
     seatChanges: 0,
@@ -21,134 +23,127 @@ export const AdminDashboard = () => {
     biometric: 0
   });
 
-  // COLORS for stat cards
-  const statCardColors = [
-    'bg-blue-700 text-white',
-    'bg-red-600 text-white',
-    'bg-emerald-700 text-white',
-    'bg-yellow-600 text-white',
-    'bg-violet-700 text-white',
-    'bg-orange-600 text-white',
-    'bg-green-700 text-white',
-    'bg-gray-900 text-white'
-  ];
-
-  // LOAD ALL DATA ON MOUNT
+  // Load initial data
   useEffect(() => {
-    loadPendingSeatBookings();
+    loadBookings();
     loadSeatChangeRequests();
     loadExpiringMembers();
+    loadSeatMap();
     loadStats();
-    // eslint-disable-next-line
   }, []);
 
-  // LOADERS
-  const loadPendingSeatBookings = async () => {
-    // 1. Pending bookings
-    const { data: bookings, error } = await supabase
-      .from('seat_bookings')
-      .select('id, user_email, seat_id, status, created_at, amount')
-      .eq('status', 'pending');
-    if (error) {
-      setPendingSeatBookings([]);
-      return;
-    }
-    // 2. Get seat labels for all seat_ids
-    const seatIds = [...new Set((bookings || []).map(b => b.seat_id))];
-    let seats = [];
-    if (seatIds.length > 0) {
-      const res = await supabase
-        .from('seats')
-        .select('id, seat_label')
-        .in('id', seatIds);
-      seats = res.data || [];
-    }
-    // 3. Map seat ids to labels
-    const seatLabelMap = {};
-    seats.forEach(seat => { seatLabelMap[seat.id] = seat.seat_label; });
-    // 4. Attach seat_label to each booking
-    const result = (bookings || []).map(b => ({
-      ...b,
-      seat_label: seatLabelMap[b.seat_id] || b.seat_id
-    }));
-    setPendingSeatBookings(result);
-    // For statistics
-    setStats(prev => ({ ...prev, pending: result.length }));
+  const loadBookings = async () => {
+    const { data, error } = await supabase.from('seat_bookings').select('*');
+    if (!error) setBookings(data || []);
   };
 
   const loadSeatChangeRequests = async () => {
-    const { data } = await supabase.from('seat_change_requests').select('*').eq('status', 'pending');
-    setSeatChangeRequests(data || []);
-    setStats(prev => ({ ...prev, seatChanges: (data || []).length }));
+    const { data, error } = await supabase
+      .from('seat_change_requests')
+      .select('*')
+      .eq('status', 'pending');
+    if (!error) setSeatChangeRequests(data || []);
   };
 
   const loadExpiringMembers = async () => {
-    const { data } = await supabase.rpc('get_soon_expiring_memberships');
-    setExpiringMembers(data || []);
-    setStats(prev => ({ ...prev, expiring: (data || []).length }));
+    const { data, error } = await supabase.rpc('get_soon_expiring_memberships');
+    if (!error) setExpiringMembers(data || []);
   };
 
-  const loadStats = async () => {
-    try {
-      const { data: seats } = await supabase.from('seats').select('id');
-      const { data: booked } = await supabase.from('seat_bookings').select('id').eq('status', 'approved');
-      const { data: held } = await supabase.from('seat_holds').select('id');
-      const { count: biometric } = await supabase.from('biometric_cards').select('*', { count: 'exact', head: true });
-
-      setStats(prev => ({
-        ...prev,
-        totalSeats: seats?.length || 0,
-        booked: booked?.length || 0,
-        held: held?.length || 0,
-        available: (seats?.length || 0) - (booked?.length || 0) - (held?.length || 0),
-        biometric: biometric || 0
-      }));
-    } catch (error) {
-      console.error('Failed to load stats:', error.message);
+  const loadSeatMap = async () => {
+    // Fetch seat_id and actual seat label
+    const { data, error } = await supabase
+      .from('seats')
+      .select('seat_id, seat_label');
+    if (!error && data) {
+      const map = data.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {});
+      setSeatMap(map);
     }
   };
 
-  // NOTIFICATIONS
-  const notifications = [
-    ...pendingSeatBookings.map(b => ({
-      type: 'pending_booking',
-      title: `New Seat Booking from ${b.user_email} for Seat No. ${b.seat_label}`,
-      subtext: `Booking ID: ${b.id}`,
-      action: (
-        <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-700 text-white">
-          <a href="/admin/pending-bookings">Go to Pending Booking Page</a>
-        </Button>
-      ),
-    })),
-    ...seatChangeRequests.map(r => ({
-      type: 'seatChange',
-      title: `Seat Change Request: ${r.user_name || r.name}`,
-      subtext: `Requested Seat: ${r.requested_seat || 'N/A'}`,
-      action: null
-    })),
-    ...expiringMembers.map(m => ({
-      type: 'expiring',
-      title: `Membership Expiring: ${m.name}`,
-      subtext: `Expiry: ${m.expiry_date ? new Date(m.expiry_date).toLocaleDateString() : 'soon'}`,
-      action: null
-    }))
-  ];
+  const loadStats = async () => {
+    const { count: pending } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { count: seatChanges } = await supabase
+      .from('seat_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    const { data: seats } = await supabase.from('seats').select('seat_id');
+    const { count: booked } = await supabase
+      .from('seat_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'approved');
+    const { data: held } = await supabase.from('seat_holds').select('seat_id');
+    const { count: biometric } = await supabase
+      .from('biometric_cards')
+      .select('*', { count: 'exact', head: true });
 
-  // STAT CARDS: Label first, then big number
-  const statsArray = [
-    { label: 'Pending Bookings', value: stats.pending, color: statCardColors[0] },
-    { label: 'Seat Changes', value: stats.seatChanges, color: statCardColors[1] },
-    { label: 'Expiring Memberships', value: stats.expiring, color: statCardColors[2] },
-    { label: 'Total Seats', value: stats.totalSeats, color: statCardColors[3] },
-    { label: 'Booked', value: stats.booked, color: statCardColors[4] },
-    { label: 'On Hold', value: stats.held, color: statCardColors[5] },
-    { label: 'Available', value: stats.available, color: statCardColors[6] },
-    { label: 'Biometric Issued', value: stats.biometric, color: statCardColors[7], icon: <Fingerprint className="w-5 h-5 mr-1 inline" /> },
-  ];
+    setStats({
+      pending: pending || 0,
+      seatChanges: seatChanges || 0,
+      expiring: expiringMembers.length,
+      totalSeats: seats?.length || 0,
+      booked: booked || 0,
+      held: held?.length || 0,
+      available: (seats?.length || 0) - (booked || 0) - (held?.length || 0),
+      biometric: biometric || 0
+    });
+  };
+
+  // Build notification queue
+  const [queue, setQueue] = useState([]);
+  useEffect(() => {
+    const merged = [
+      // Pending Booking Requests with seat label
+      ...bookings
+        .filter(b => b.status === 'pending')
+        .map(b => {
+          const seatNum = seatMap[b.seat_id] || b.seat_id;
+          return {
+            id: b.id,
+            type: 'booking',
+            label: `New seat request by ${b.user_email} for seat number ${seatNum}`,
+            date: b.from_time || b.created_at
+          };
+        }),
+      // Seat Change Requests
+      ...seatChangeRequests.map(r => ({
+        id: r.id,
+        type: 'seat_change',
+        label: `Seat Change Request: ${r.user_name}`,
+        date: r.created_at
+      })),
+      // Expiring Memberships
+      ...expiringMembers.map(m => ({
+        id: m.id || m.user_id,
+        type: 'expiry',
+        label: `Expiring Membership: ${m.name}`,
+        date: m.valid_till
+      }))
+    ];
+    setQueue(merged);
+  }, [bookings, seatChangeRequests, expiringMembers, seatMap]);
+
+  const handleActionClick = item => {
+    switch (item.type) {
+      case 'booking':
+        navigate('/admin/pending-bookings');
+        break;
+      case 'seat_change':
+        navigate('/admin/seat-changes');
+        break;
+      case 'expiry':
+        navigate('/admin/expiring-memberships');
+        break;
+    }
+    setQueue(q => q.filter(i => i.id !== item.id));
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar Navigation */}
+      {/* Sidebar */}
       <div className="w-64 bg-blue-800 text-white p-4 space-y-2">
         <div className="text-2xl font-bold mb-4">Admin</div>
         {[
@@ -165,57 +160,44 @@ export const AdminDashboard = () => {
           </div>
         ))}
       </div>
+
       {/* Main Content */}
       <div className="flex-1 p-6 space-y-6">
-        {/* Stat cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {statsArray.map((item, i) => (
-            <Card key={item.label} className={item.color + " p-4 flex flex-col items-center"}>
-              <CardContent className="flex flex-col items-center justify-center gap-1">
-                <div className="text-base font-semibold mb-1">{item.icon}{item.label}</div>
-                <div className="text-5xl font-extrabold tracking-tight">{item.value}</div>
-              </CardContent>
-            </Card>
-          ))}
+          <Card className="bg-pink-100 p-4"><CardContent><div>Pending Bookings</div><div className="text-xl font-bold">{stats.pending}</div></CardContent></Card>
+          <Card className="bg-blue-100 p-4"><CardContent><div>Seat Changes</div><div className="text-xl font-bold">{stats.seatChanges}</div></CardContent></Card>
+          <Card className="bg-green-100 p-4"><CardContent><div>Expiring Memberships</div><div className="text-xl font-bold">{stats.expiring}</div></CardContent></Card>
+          <Card className="bg-yellow-100 p-4"><CardContent><div>Total Seats</div><div className="text-xl font-bold">{stats.totalSeats}</div></CardContent></Card>
+          <Card className="bg-purple-100 p-4"><CardContent><div>Booked</div><div className="text-xl font-bold">{stats.booked}</div></CardContent></Card>
+          <Card className="bg-orange-100 p-4"><CardContent><div>On Hold</div><div className="text-xl font-bold">{stats.held}</div></CardContent></Card>
+          <Card className="bg-teal-100 p-4"><CardContent><div>Available</div><div className="text-xl font-bold">{stats.available}</div></CardContent></Card>
+          <Card className="bg-indigo-100 p-4"><CardContent><div className="flex items-center"><Fingerprint className="w-4 h-4 mr-1" /> Biometric Issued</div><div className="text-xl font-bold">{stats.biometric}</div></CardContent></Card>
         </div>
-        {/* Pending Actions as notifications */}
-        <ul>
-  {pendingSeatBookings.map(b => (
-    <li key={b.id}>{b.user_email} / {b.seat_id} / {b.status}</li>
-  ))}
-</ul>
 
-        <Card className="p-4 shadow bg-gray-50">
-          <CardContent>
-            <div className="font-bold text-lg mb-2">Pending Actions</div>
-            <div className="flex flex-col gap-3">
-              {notifications.length === 0 && <div className="text-gray-400 text-sm">No pending actions!</div>}
-              {notifications.map((n, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-4 rounded-xl shadow border border-gray-200 bg-white px-4 py-3"
-                  style={{
-                    maxWidth: 420,
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                    boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)'
-                  }}
+        {/* Pending Actions Queue */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="font-bold text-lg mb-3">🔔 Pending Actions 18:21</div>
+          {queue.length === 0 ? (
+            <div className="text-gray-500">No pending actions. All caught up!</div>
+          ) : (
+            <ul className="space-y-2">
+              {queue.map(item => (
+                <li
+                  key={`${item.type}-${item.id}`}
+                  className="flex justify-between items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleActionClick(item)}
                 >
-                  <div className="flex-shrink-0">
-                    {n.type === 'pending_booking' && <ClipboardList className="w-7 h-7 text-blue-700" />}
-                    {n.type === 'seatChange' && <Repeat className="w-7 h-7 text-red-600" />}
-                    {n.type === 'expiring' && <Bell className="w-7 h-7 text-yellow-600" />}
+                  <div>
+                    <div className="font-medium">{item.label}</div>
+                    <div className="text-xs text-gray-500">{new Date(item.date).toLocaleString()}</div>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-base">{n.title}</div>
-                    <div className="text-xs text-gray-500">{n.subtext}</div>
-                  </div>
-                  {n.action}
-                </div>
+                  <Button size="sm" variant="ghost">Go</Button>
+                </li>
               ))}
-            </div>
-          </CardContent>
-        </Card>
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
