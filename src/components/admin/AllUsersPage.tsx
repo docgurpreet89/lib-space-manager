@@ -1,143 +1,233 @@
-import { useEffect, useState } from 'react';
+// src/components/pages/admin/AllUsers.tsx
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+  ClipboardList,
+  Repeat,
+  Users as UsersIcon,
+  FileText,
+  Bell,
+  IdCard,
+  LogOut,
+  ArrowLeft,
+  Search,
+} from 'lucide-react';
+import dayjs from 'dayjs';
 
-interface UserProfile {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  seat_label: string | null;
-}
-
-export const AllUsersPage = () => {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [search, setSearch] = useState('');
+const AllUsers = () => {
+  const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
+  // Admin guard + load data
   useEffect(() => {
-    fetchUsers();
-  }, [search, page, perPage]);
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return navigate('/');
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+      if (error || data.role !== 'admin') return navigate('/');
+      setIsAdmin(true);
+      loadUsers();
+    })();
+  }, [navigate]);
 
-  const fetchUsers = async () => {
-    const from = (page - 1) * perPage;
-    const to = from + perPage - 1;
+  // Fetch user list, bookings, and seats
+  const loadUsers = async () => {
+    setLoading(true);
+    // 1) get all user_ids with role 'user'
+    const { data: rolesData, error: rolesErr } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'user');
+    if (rolesErr) { console.error(rolesErr); setLoading(false); return; }
+    const ids = rolesData.map(r => r.user_id);
 
-    let query = supabase
-      .from('profiles')
-      .select(`
-        id,
-        full_name,
-        email,
-        phone,
-        seat_bookings:seat_bookings(seat_id, status, seats(seat_label))
-      `, { count: 'exact' })
-      .range(from, to);
+    // 2) fetch latest approved booking per user
+    const { data: bookings, error: bookErr } = await supabase
+      .from('seat_bookings')
+      .select('user_id, user_name, user_email, user_phone, status, from_time, to_time, seat_id')
+      .in('user_id', ids)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+    if (bookErr) console.error(bookErr);
 
-    if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
-    }
+    // map user data and collect seat_ids
+    const map: Record<string, any> = {};
+    const seatSet = new Set<string>();
+    bookings?.forEach(b => {
+      if (!map[b.user_id]) {
+        map[b.user_id] = { ...b };
+        if (b.seat_id) seatSet.add(b.seat_id);
+      }
+    });
 
-    const { data, error, count } = await query;
+    // 3) fetch seat labels
+    const { data: seats } = await supabase
+      .from('seats')
+      .select('seat_id, seat_label')
+      .in('seat_id', Array.from(seatSet));
+    const seatMap = seats?.reduce((acc, s) => ({ ...acc, [s.seat_id]: s.seat_label }), {}) || {};
 
-    if (error) {
-      console.error('Error fetching users:', error);
-      return;
-    }
-
-    const formatted = (data || []).map((u: any) => {
-      const approvedBooking = (u.seat_bookings || []).find((b: any) => b.status === 'approved');
+    // assemble final array with start_date and end_date
+    const allUsers = ids.map(id => {
+      const u = map[id] || {};
+      const startDate = u.from_time || null;
+      const endDate = u.to_time || null;
+      const daysLeft = endDate ? dayjs(endDate).diff(dayjs(), 'day') : null;
       return {
-        id: u.id,
-        full_name: u.full_name,
-        email: u.email,
-        phone: u.phone,
-        seat_label: approvedBooking?.seats?.seat_label || null
+        id,
+        name: u.user_name || '-',
+        email: u.user_email || '-',
+        phone: u.user_phone || '-',
+        seat: u.seat_id ? seatMap[u.seat_id] || u.seat_id : '-',
+        membership: u.status || 'none',
+        startDate,
+        endDate,
+        daysLeft,
       };
     });
 
-    setUsers(formatted);
-    setTotal(count || 0);
+    setUsers(allUsers);
+    setLoading(false);
   };
 
+  if (!isAdmin) return <div className="p-6 text-center">Checking access...</div>;
+
+  // Sidebar nav items
+  const nav = [
+    { label: 'Admin Home', path: '/admin' },
+    { label: 'Pending Bookings', path: '/admin/pending-bookings' },
+    { label: 'Seat Change Requests', path: '/admin/seat-changes' },
+    { label: 'All Users', path: '/admin/users' },
+    { label: 'All Transactions', path: '/admin/all-transactions' },
+    { label: 'Notice Management', path: '/admin/notices' },
+    { label: 'Expiring Memberships', path: '/admin/expiring-memberships' },
+    { label: 'Biometric Management', path: '/admin/biometrics' },
+  ];
+
+  // filtering & pagination
+  const filtered = users.filter(u =>
+    [u.id, u.name, u.email, u.phone, u.seat]
+      .some(v => v.toLowerCase().includes(filter.toLowerCase()))
+  );
+  const total = Math.ceil(filtered.length / perPage);
+  const pageData = filtered.slice((page - 1) * perPage, (page - 1) * perPage + perPage);
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 justify-between items-center">
-        <Input
-          placeholder="Search by name or email"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-full md:w-64"
-        />
-        <select
-          className="app-input p-2 border rounded"
-          value={perPage}
-          onChange={(e) => {
-            setPerPage(parseInt(e.target.value));
-            setPage(1);
-          }}
-        >
-          <option value="5">5 per page</option>
-          <option value="10">10 per page</option>
-          <option value="20">20 per page</option>
-        </select>
-      </div>
-
-      <Table>
-        <thead className="bg-[#00B9F1] text-white">
-          <tr>
-            <th className="p-2 text-left">Name</th>
-            <th className="p-2 text-left">Email</th>
-            <th className="p-2 text-left">Phone</th>
-            <th className="p-2 text-left">Approved Seat</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.length > 0 ? users.map((u) => (
-            <tr key={u.id} className="border-b">
-              <td className="p-2">{u.full_name}</td>
-              <td className="p-2">{u.email}</td>
-              <td className="p-2">{u.phone}</td>
-              <td className="p-2">{u.seat_label || 'N/A'}</td>
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={4} className="p-4 text-center text-gray-500">No users found</td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
-
-      <div className="flex justify-between items-center text-sm">
-        <span>
-          Showing {Math.min((page - 1) * perPage + 1, total)} - {Math.min(page * perPage, total)} of {total}
-        </span>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-          >
-            Prev
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => (p * perPage < total ? p + 1 : p))}
-            disabled={page * perPage >= total}
-          >
-            Next
-          </Button>
+    <div className="flex min-h-screen bg-gray-100">
+      <aside className="w-64 bg-blue-800 text-white p-4 space-y-2">
+        <div className="text-2xl font-bold mb-4">Admin Panel</div>
+        {nav.map(item => (
+          <div key={item.label} className="flex items-center p-2 hover:bg-blue-700 cursor-pointer" onClick={() => navigate(item.path)}>
+            <span>{item.label}</span>
+          </div>
+        ))}
+        <hr className="border-t border-blue-600 my-2" />
+        <div className="flex items-center p-2 hover:bg-red-700 cursor-pointer" onClick={async () => { await supabase.auth.signOut(); navigate('/'); }}>
+          <LogOut className="w-4 h-4 mr-2" /> Logout
         </div>
-      </div>
+      </aside>
+
+      <main className="flex-1 p-6 space-y-6">
+        <Button size="sm" variant="outline" onClick={() => navigate('/admin')}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Homepage
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>All Users</CardTitle>
+            <CardDescription>role=user, allocated seat, start/end dates & days remaining</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex mb-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-2 h-4 w-4 text-gray-400" />
+                <Input className="pl-8 w-64" placeholder="Search..." value={filter} onChange={e => setFilter(e.target.value)} />
+              </div>
+              <select className="ml-auto border p-1 rounded" value={perPage} onChange={e => setPerPage(Number(e.target.value))}>
+                {[5, 10, 25, 50].map(n => <option key={n} value={n}>{n}/page</option>)}
+              </select>
+            </div>
+
+            <div className="overflow-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Seat</TableHead>
+                    <TableHead>Membership</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Days Left</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading
+                    ? <TableRow><TableCell colSpan={9} className="py-4 text-center">Loading...</TableCell></TableRow>
+                    : pageData.length === 0
+                      ? <TableRow><TableCell colSpan={9} className="py-4 text-center">No users found</TableCell></TableRow>
+                      : pageData.map(u => (
+                        <TableRow key={u.id} className={u.daysLeft != null && u.daysLeft < 0 ? 'bg-red-100' : ''}>
+                          <TableCell>{u.id}</TableCell>
+                          <TableCell>{u.name}</TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>{u.phone}</TableCell>
+                          <TableCell>{u.seat}</TableCell>
+                          <TableCell>
+                            <Badge className={u.membership === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                              {u.membership}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{u.startDate ? dayjs(u.startDate).format('YYYY-MM-DD') : '-'}</TableCell>
+                          <TableCell>{u.endDate ? dayjs(u.endDate).format('YYYY-MM-DD') : '-'}</TableCell>
+                          <TableCell>{u.daysLeft != null ? (u.daysLeft >= 0 ? u.daysLeft : 'Expired') : '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <Button size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+              <span>Page {page} of {total}</span>
+              <Button size="sm" disabled={page === total} onClick={() => setPage(p => p + 1)}>Next</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 };
+
+export default AllUsers;
