@@ -10,6 +10,11 @@ import NotFound from "./pages/NotFound";
 
 import { AdminDashboard } from "@/components/dashboard/AdminDashboard";
 import PendingBookings from "@/components/admin/PendingBookings";
+import AllTransactions from '@/components/admin/AdminTransactionsPage'
+import SeatChangeRequests from '@/components/admin/SeatChangeRequests'
+import ExpiringMemberships from '@/components/admin/ExpiringMemberships'
+import AllBiometric from '@/components/admin/AllBiometric'
+import AllUsers from '@/components/admin/AllUsersPage'
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -23,8 +28,10 @@ const App = () => (
 
           {/* --- Admin Panel Routes --- */}
           <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/pending-bookings" element={<PendingBookings />} />ss
-
+          <Route path="/admin/pending-bookings" element={<PendingBookings />} />
+          <Route path="/admin/all-transactions" element={<AllTransactions />} />
+          <Route path="/admin/biometrics" element={<AllBiometric />} />
+          <Route path="/admin/all-users" element={<AllUsers />} />
           {/* --- 404 Catch-All, KEEP LAST! --- */}
           <Route path="*" element={<NotFound />} />
         </Routes>
