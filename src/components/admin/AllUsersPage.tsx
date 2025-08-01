@@ -24,13 +24,19 @@ import { Badge } from '@/components/ui/badge';
 import {
   ClipboardList,
   Repeat,
-  Users as UsersIcon,
+  Users,
   FileText,
   Bell,
   IdCard,
   LogOut,
   ArrowLeft,
   Search,
+  Edit3,
+  Save,
+  X,
+  ChevronUp,
+  ChevronDown,
+  List,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -42,6 +48,11 @@ const AllUsers = () => {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
+
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+
 
   // Admin guard + load data
   useEffect(() => {
@@ -119,20 +130,31 @@ const AllUsers = () => {
     setLoading(false);
   };
 
+  const loadTransactions = async (userId: string) => {
+    setModalLoading(true);
+    setViewingUserId(userId);
+    const { data, error } = await supabase
+      .from('seat_bookings')
+      .select('booking_id, from_time, to_time, status, seat_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    setTransactions(data || []);
+    setModalLoading(false);
+  };
+
   if (!isAdmin) return <div className="p-6 text-center">Checking access...</div>;
 
-  // Sidebar nav items
+  // Navigation items
   const nav = [
-    { label: 'Admin Home', path: '/admin' },
-    { label: 'Pending Bookings', path: '/admin/pending-bookings' },
-    { label: 'Seat Change Requests', path: '/admin/seat-changes' },
-    { label: 'All Users', path: '/admin/users' },
-    { label: 'All Transactions', path: '/admin/all-transactions' },
-    { label: 'Notice Management', path: '/admin/notices' },
-    { label: 'Expiring Memberships', path: '/admin/expiring-memberships' },
-    { label: 'Biometric Management', path: '/admin/biometrics' },
+    { label: 'Admin Home', icon: FileText, path: '/admin' },
+    { label: 'Pending Bookings', icon: ClipboardList, path: '/admin/pending-bookings' },
+    { label: 'Seat Change Requests', icon: Repeat, path: '/admin/seat-changes' },
+    { label: 'All Users', icon: Users, path: '/admin/all-users' },
+    { label: 'All Transactions', icon: FileText, path: '/admin/all-transactions' },
+    { label: 'Notice Management', icon: Bell, path: '/admin/notices' },
+    { label: 'Expiring Memberships', icon: FileText, path: '/admin/expiring-memberships' },
+    { label: 'Biometric Management', icon: IdCard, path: '/admin/biometrics' },
   ];
-
   // filtering & pagination
   const filtered = users.filter(u =>
     [u.id, u.name, u.email, u.phone, u.seat]
@@ -190,13 +212,14 @@ const AllUsers = () => {
                     <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
                     <TableHead>Days Left</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading
-                    ? <TableRow><TableCell colSpan={9} className="py-4 text-center">Loading...</TableCell></TableRow>
+                    ? <TableRow><TableCell colSpan={10} className="py-4 text-center">Loading...</TableCell></TableRow>
                     : pageData.length === 0
-                      ? <TableRow><TableCell colSpan={9} className="py-4 text-center">No users found</TableCell></TableRow>
+                      ? <TableRow><TableCell colSpan={10} className="py-4 text-center">No users found</TableCell></TableRow>
                       : pageData.map(u => (
                         <TableRow key={u.id} className={u.daysLeft != null && u.daysLeft < 0 ? 'bg-red-100' : ''}>
                           <TableCell>{u.id}</TableCell>
@@ -212,6 +235,11 @@ const AllUsers = () => {
                           <TableCell>{u.startDate ? dayjs(u.startDate).format('YYYY-MM-DD') : '-'}</TableCell>
                           <TableCell>{u.endDate ? dayjs(u.endDate).format('YYYY-MM-DD') : '-'}</TableCell>
                           <TableCell>{u.daysLeft != null ? (u.daysLeft >= 0 ? u.daysLeft : 'Expired') : '-'}</TableCell>
+                          <TableCell>
+                            <Button size="sm" onClick={() => loadTransactions(u.id)}>
+                              <List className="w-4 h-4" /> View
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                 </TableBody>
@@ -225,6 +253,45 @@ const AllUsers = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal for viewing user transactions */}
+        {viewingUserId && (
+          <Dialog open onOpenChange={() => setViewingUserId(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogTitle>User Transactions</DialogTitle>
+              {modalLoading ? (
+                <div className="py-4 text-center">Loading...</div>
+              ) : (
+                <div className="overflow-auto max-h-96">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Booking ID</TableHead>
+                        <TableHead>Seat ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>From</TableHead>
+                        <TableHead>To</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map(tx => (
+                        <TableRow key={tx.booking_id}>
+                          <TableCell>{tx.booking_id}</TableCell>
+                          <TableCell>{tx.seat_id || '-'}</TableCell>
+                          <TableCell>{tx.status}</TableCell>
+                          <TableCell>{dayjs(tx.from_time).format('YYYY-MM-DD')}</TableCell>
+                          <TableCell>{dayjs(tx.to_time).format('YYYY-MM-DD')}</TableCell>
+                          <TableCell>{dayjs(tx.created_at).format('YYYY-MM-DD HH:mm')}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
     </div>
   );
